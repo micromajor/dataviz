@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Capture d'écran — DataViz TNR</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <header>
+        <h1>📸 DataViz — Capture & Comparaison</h1>
+        <p class="subtitle">Capturez une page web et comparez-la automatiquement avec la version précédente</p>
+        <nav class="nav-links">
+            <a href="/" class="nav-link">📁 Comparer des fichiers</a>
+            <a href="/capture" class="nav-link active">📸 Capturer une URL</a>
+        </nav>
+    </header>
+
+    <main>
+        {% if message %}
+        <div class="info-banner">
+            <div class="info-icon">ℹ️</div>
+            <div>
+                <p>{{ message }}</p>
+                {% if capture_url %}
+                <div class="capture-preview">
+                    <img src="{{ capture_url }}" alt="Capture enregistrée">
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <form action="/capture/screenshot" method="post" id="captureForm">
+            <div class="capture-card">
+                <div class="capture-input-group">
+                    <label for="url">🌐 URL de la page à capturer</label>
+                    <div class="url-input-row">
+                        <input
+                            type="url"
+                            name="url"
+                            id="url"
+                            placeholder="https://mon-application.interne/page-a-tester"
+                            value="{{ url or '' }}"
+                            required
+                            class="url-input"
+                        >
+                        <button type="submit" class="capture-btn" id="captureBtn">
+                            📸 Capturer
+                        </button>
+                    </div>
+                    <small>Entrez l'URL de la page à tester. À chaque capture, l'outil compare automatiquement avec la précédente.</small>
+                </div>
+            </div>
+        </form>
+
+        <div class="how-it-works">
+            <h2>🔄 Comment ça marche ?</h2>
+            <div class="steps">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <h3>Première capture</h3>
+                    <p>Capturez la page de référence (avant livraison). L'image est stockée localement.</p>
+                </div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <h3>Nouvelle livraison</h3>
+                    <p>Après déploiement, capturez à nouveau la même URL.</p>
+                </div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <h3>Comparaison auto</h3>
+                    <p>L'outil compare automatiquement les deux versions et génère un rapport avec heatmap, score SSIM et analyse IA.</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <p>DataViz TNR — 100% Offline • Aucune donnée envoyée sur internet</p>
+    </footer>
+
+    <script>
+        document.getElementById('captureForm').addEventListener('submit', function() {
+            const btn = document.getElementById('captureBtn');
+            btn.textContent = '⏳ Capture en cours...';
+            btn.disabled = true;
+        });
+    </script>
+</body>
+</html>

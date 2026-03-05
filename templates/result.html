@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Résultats — DataViz TNR</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <header>
+        <h1>🔍 DataViz — Résultats de comparaison</h1>
+        <nav class="nav-links">
+            <a href="/" class="nav-link">📁 Comparer des fichiers</a>
+            <a href="/capture" class="nav-link">📸 Capturer une URL</a>
+        </nav>
+    </header>
+
+    <main>
+        <!-- Indicateurs -->
+        <div class="metrics">
+            <div class="metric-card {{ 'good' if score_ssim >= 0.95 else ('warning' if score_ssim >= 0.85 else 'bad') }}">
+                <div class="metric-value">{{ (score_ssim * 100) | round(1) }}%</div>
+                <div class="metric-label">Similarité (SSIM)</div>
+            </div>
+            <div class="metric-card {{ 'good' if diff_percent <= 1 else ('warning' if diff_percent <= 5 else 'bad') }}">
+                <div class="metric-value">{{ diff_percent }}%</div>
+                <div class="metric-label">Pixels différents</div>
+            </div>
+            <div class="metric-card {{ 'good' if num_regions == 0 else ('warning' if num_regions <= 5 else 'bad') }}">
+                <div class="metric-value">{{ num_regions }}</div>
+                <div class="metric-label">Zones modifiées</div>
+            </div>
+            <div class="metric-card neutral">
+                <div class="metric-value">{{ threshold }}</div>
+                <div class="metric-label">Seuil utilisé</div>
+            </div>
+        </div>
+
+        <!-- Verdict -->
+        <div class="verdict {{ 'verdict-pass' if score_ssim >= 0.95 and diff_percent <= 2 else 'verdict-fail' }}">
+            {% if score_ssim >= 0.95 and diff_percent <= 2 %}
+                ✅ TNR PASSÉ — Les deux versions sont visuellement conformes
+            {% else %}
+                ⚠️ TNR ÉCHOUÉ — Des différences visuelles ont été détectées
+            {% endif %}
+        </div>
+
+        <!-- Résumé textuel automatique -->
+        {% if text_summary %}
+        <section class="result-section summary-section">
+            <h2>📋 Résumé des différences</h2>
+            <p class="section-desc">Analyse automatique basée sur le moteur de comparaison OpenCV</p>
+            <div class="text-summary">
+                {% for line in text_summary.split('\n') %}
+                    {% if line.startswith('🔴') or line.startswith('🟠') or line.startswith('🟡') or line.startswith('🔵') %}
+                        <div class="summary-zone {{ 'zone-critique' if '🔴' in line else ('zone-majeur' if '🟠' in line else ('zone-mineur' if '🟡' in line else 'zone-cosmetique')) }}">
+                            {{ line }}
+                        </div>
+                    {% elif line.startswith('Synthèse') %}
+                        <div class="summary-synthesis">{{ line }}</div>
+                    {% elif line %}
+                        <p>{{ line }}</p>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+
+        <!-- Analyse IA -->
+        {% if ai_analysis %}
+        <section class="result-section ai-section">
+            <h2>🤖 Analyse IA approfondie (modèle local)</h2>
+            <p class="section-desc">Interprétation par intelligence artificielle embarquée — modèle vision multimodal</p>
+            <div class="ai-analysis">
+                {{ ai_analysis | replace('\n', '<br>') | safe }}
+            </div>
+        </section>
+        {% endif %}
+
+        {% if source_url %}
+        <div class="source-info">
+            <span>🌐 URL testée : <code>{{ source_url }}</code></span>
+            {% if capture_count %}<span> • Capture n°{{ capture_count }}</span>{% endif %}
+        </div>
+        {% endif %}
+
+        <!-- Comparaison par slider -->
+        <section class="result-section">
+            <h2>📊 Comparaison interactive</h2>
+            <div class="slider-compare" id="sliderCompare">
+                <div class="slider-img-container">
+                    <img src="{{ ref_url }}" alt="Image référence" class="slider-img" id="imgRef">
+                    <div class="slider-overlay" id="sliderOverlay">
+                        <img src="{{ new_url }}" alt="Nouvelle image" class="slider-img" id="imgNew">
+                    </div>
+                    <div class="slider-handle" id="sliderHandle">
+                        <div class="slider-line"></div>
+                        <div class="slider-grip">⟷</div>
+                    </div>
+                </div>
+                <div class="slider-labels">
+                    <span>📸 Référence</span>
+                    <span>📷 Nouvelle version</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Heatmap des différences -->
+        <section class="result-section">
+            <h2>🌡️ Heatmap des différences</h2>
+            <p class="section-desc">Les zones colorées indiquent les pixels modifiés. Rouge = forte différence.</p>
+            <div class="result-image">
+                <img src="{{ heatmap_url }}" alt="Heatmap des différences">
+            </div>
+        </section>
+
+        <!-- Zones détectées -->
+        <section class="result-section">
+            <h2>🔲 Zones modifiées détectées</h2>
+            <p class="section-desc">Les rectangles rouges encadrent les zones où des changements ont été identifiés.</p>
+            <div class="result-image">
+                <img src="{{ contour_url }}" alt="Zones modifiées">
+            </div>
+        </section>
+
+        <!-- Images originales côte à côte -->
+        <section class="result-section">
+            <h2>🖼️ Images originales</h2>
+            <div class="side-by-side">
+                <div>
+                    <h3>Référence</h3>
+                    <img src="{{ ref_url }}" alt="Image référence">
+                </div>
+                <div>
+                    <h3>Nouvelle version</h3>
+                    <img src="{{ new_url }}" alt="Nouvelle image">
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>DataViz TNR — 100% Offline • Aucune donnée envoyée sur internet</p>
+    </footer>
+
+    <script>
+        // Slider interactif
+        (function() {
+            const container = document.getElementById('sliderCompare');
+            const overlay = document.getElementById('sliderOverlay');
+            const handle = document.getElementById('sliderHandle');
+            let isDragging = false;
+
+            function updateSlider(x) {
+                const rect = container.querySelector('.slider-img-container').getBoundingClientRect();
+                let pos = ((x - rect.left) / rect.width) * 100;
+                pos = Math.max(0, Math.min(100, pos));
+                overlay.style.clipPath = `inset(0 0 0 ${pos}%)`;
+                handle.style.left = pos + '%';
+            }
+
+            // Initialiser à 50%
+            overlay.style.clipPath = 'inset(0 0 0 50%)';
+            handle.style.left = '50%';
+
+            container.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                updateSlider(e.clientX);
+            });
+            document.addEventListener('mousemove', (e) => {
+                if (isDragging) updateSlider(e.clientX);
+            });
+            document.addEventListener('mouseup', () => isDragging = false);
+
+            // Support tactile
+            container.addEventListener('touchstart', (e) => {
+                isDragging = true;
+                updateSlider(e.touches[0].clientX);
+            });
+            document.addEventListener('touchmove', (e) => {
+                if (isDragging) updateSlider(e.touches[0].clientX);
+            });
+            document.addEventListener('touchend', () => isDragging = false);
+        })();
+    </script>
+</body>
+</html>

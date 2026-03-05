@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+python-multipart
+Pillow
+opencv-python-headless
+scikit-image
+numpy
+jinja2
+playwright
+httpx
