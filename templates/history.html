@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Historique — DataViz TNR</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <header>
+        <h1><span aria-hidden="true">📂</span> DataViz — Historique des comparaisons</h1>
+        <p class="subtitle">Consultez et rouvrez vos rapports TNR enregistrés</p>
+        <nav class="nav-links" aria-label="Navigation principale">
+            <a href="/" class="nav-link"><span aria-hidden="true">📁</span> Comparer des fichiers</a>
+            <a href="/capture" class="nav-link"><span aria-hidden="true">📸</span> Capturer une URL</a>
+            <a href="/history" class="nav-link" aria-current="page"><span aria-hidden="true">📂</span> Historique</a>
+        </nav>
+    </header>
+
+    <main>
+        {% if reports %}
+        <div class="history-toolbar">
+            <p class="history-count" role="status">{{ reports | length }} rapport(s) enregistré(s)</p>
+            <div class="history-filter">
+                <label for="filterInput" class="sr-only">Filtrer les rapports</label>
+                <input type="search" id="filterInput" placeholder="Rechercher par nom, URL, verdict…" autocomplete="off">
+            </div>
+        </div>
+
+        <ul class="history-list" id="historyList" aria-label="Liste des comparaisons archivées">
+            {% for r in reports %}
+            {% set verdict = r.get('verdict', 'fail') %}
+            {% set label = r.get('label', '') %}
+            {% set mode = r.get('mode', 'file') %}
+            {% set created = r.get('created_at', '') %}
+            {% set score = r.get('score_ssim', 0) %}
+            {% set diff = r.get('diff_percent', 0) %}
+            {% set zones = r.get('num_regions', 0) %}
+            <li class="history-item {{ 'history-pass' if verdict == 'pass' else 'history-fail' }}" data-search="{{ label }} {{ r.get('source_url', '') }} {{ verdict }}">
+                <div class="history-item-header">
+                    <div class="history-item-title">
+                        {% if verdict == 'pass' %}
+                        <span class="history-verdict-badge badge-pass" aria-label="Statut : TNR passé">✅ PASSÉ</span>
+                        {% else %}
+                        <span class="history-verdict-badge badge-fail" aria-label="Statut : TNR échoué">⚠️ ÉCHOUÉ</span>
+                        {% endif %}
+                        <span class="history-label">
+                            {% if label %}{{ label }}{% else %}<em class="no-label">Sans titre</em>{% endif %}
+                        </span>
+                    </div>
+                    <div class="history-item-meta">
+                        {% if created %}
+                        <span class="history-date">
+                            <span aria-hidden="true">📅</span>
+                            {{ created[:10].split('-') | reverse | join('/') }}
+                            {% if created | length > 10 %} à {{ created[11:16] }}{% endif %}
+                        </span>
+                        {% endif %}
+                        <span class="history-mode">
+                            <span aria-hidden="true">{{ '📸' if mode == 'url' else '📁' }}</span>
+                            {{ 'URL' if mode == 'url' else 'Fichier' }}
+                        </span>
+                    </div>
+                </div>
+                <div class="history-item-metrics">
+                    <span class="history-metric {{ 'hm-good' if score >= 0.95 else ('hm-warn' if score >= 0.85 else 'hm-bad') }}">
+                        SSIM {{ (score * 100) | round(1) }}%
+                    </span>
+                    <span class="history-metric {{ 'hm-good' if diff <= 1 else ('hm-warn' if diff <= 5 else 'hm-bad') }}">
+                        {{ diff }}% pixels diff.
+                    </span>
+                    <span class="history-metric {{ 'hm-good' if zones == 0 else ('hm-warn' if zones <= 5 else 'hm-bad') }}">
+                        {{ zones }} zone(s)
+                    </span>
+                    {% if r.get('source_url') %}
+                    <span class="history-metric hm-neutral history-url" title="{{ r.source_url }}">
+                        <span aria-hidden="true">🌐</span> {{ r.source_url | truncate(60) }}
+                    </span>
+                    {% endif %}
+                </div>
+                <div class="history-item-thumb">
+                    {% if r.get('new_url') %}
+                    <img src="{{ r.new_url }}" alt="Aperçu de la nouvelle version pour {{ label or 'ce rapport' }}" loading="lazy">
+                    {% endif %}
+                    {% if r.get('heatmap_url') %}
+                    <img src="{{ r.heatmap_url }}" alt="Heatmap des différences pour {{ label or 'ce rapport' }}" loading="lazy">
+                    {% endif %}
+                </div>
+                <div class="history-item-actions">
+                    <a href="/history/{{ r.uid }}" class="btn-open-report">
+                        <span aria-hidden="true">📄</span> Ouvrir le rapport
+                    </a>
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+
+        <p class="history-empty-filter" id="emptyFilter" hidden aria-live="polite">Aucun rapport ne correspond à votre recherche.</p>
+
+        {% else %}
+        <div class="history-empty">
+            <div class="history-empty-icon" aria-hidden="true">📭</div>
+            <h2>Aucun rapport enregistré</h2>
+            <p>Lancez une comparaison pour commencer à constituer votre historique.</p>
+            <div class="history-empty-actions">
+                <a href="/" class="compare-btn"><span aria-hidden="true">📁</span> Comparer des fichiers</a>
+                <a href="/capture" class="compare-btn btn-secondary"><span aria-hidden="true">📸</span> Capturer une URL</a>
+            </div>
+        </div>
+        {% endif %}
+    </main>
+
+    <footer>
+        <p>DataViz TNR — 100% Offline • Aucune donnée envoyée sur internet</p>
+    </footer>
+
+    <script>
+        // Filtre de recherche en temps réel
+        const filterInput = document.getElementById('filterInput');
+        const list = document.getElementById('historyList');
+        const emptyMsg = document.getElementById('emptyFilter');
+        if (filterInput && list) {
+            filterInput.addEventListener('input', function() {
+                const q = this.value.toLowerCase().trim();
+                let visible = 0;
+                list.querySelectorAll('.history-item').forEach(function(li) {
+                    const match = !q || li.dataset.search.toLowerCase().includes(q);
+                    li.hidden = !match;
+                    if (match) visible++;
+                });
+                if (emptyMsg) emptyMsg.hidden = visible > 0;
+            });
+        }
+    </script>
+</body>
+</html>

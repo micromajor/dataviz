@@ -8,23 +8,28 @@
 </head>
 <body>
     <header>
-        <h1>📸 DataViz — Capture & Comparaison</h1>
+        <h1><span aria-hidden="true">📸</span> DataViz — Capture &amp; Comparaison</h1>
         <p class="subtitle">Capturez une page web et comparez-la automatiquement avec la version précédente</p>
-        <nav class="nav-links">
-            <a href="/" class="nav-link">📁 Comparer des fichiers</a>
-            <a href="/capture" class="nav-link active">📸 Capturer une URL</a>
+        <nav class="nav-links" aria-label="Navigation principale">
+            <a href="/" class="nav-link"><span aria-hidden="true">📁</span> Comparer des fichiers</a>
+            <a href="/capture" class="nav-link" aria-current="page"><span aria-hidden="true">📸</span> Capturer une URL</a>
+            <a href="/history" class="nav-link"><span aria-hidden="true">📂</span> Historique</a>
+            <span class="ai-status" id="aiStatus" role="status" aria-live="polite" aria-label="Statut de l'analyse IA">
+                <span class="ai-dot" aria-hidden="true"></span>
+                <span class="ai-label" id="aiLabel">IA…</span>
+            </span>
         </nav>
     </header>
 
     <main>
         {% if message %}
-        <div class="info-banner">
-            <div class="info-icon">ℹ️</div>
+        <div class="info-banner" role="status" aria-live="polite">
+            <div class="info-icon" aria-hidden="true">ℹ️</div>
             <div>
                 <p>{{ message }}</p>
                 {% if capture_url %}
                 <div class="capture-preview">
-                    <img src="{{ capture_url }}" alt="Capture enregistrée">
+                    <img src="{{ capture_url }}" alt="Aperçu de la capture d'écran enregistrée">
                 </div>
                 {% endif %}
             </div>
@@ -34,7 +39,7 @@
         <form action="/capture/screenshot" method="post" id="captureForm">
             <div class="capture-card">
                 <div class="capture-input-group">
-                    <label for="url">🌐 URL de la page à capturer</label>
+                    <label for="url"><span aria-hidden="true">🌐</span> URL de la page à capturer</label>
                     <div class="url-input-row">
                         <input
                             type="url"
@@ -45,35 +50,62 @@
                             required
                             class="url-input"
                         >
-                        <button type="submit" class="capture-btn" id="captureBtn">
-                            📸 Capturer
+                        <button type="submit" class="capture-btn" id="captureBtn" aria-describedby="captureStatus">
+                            <span aria-hidden="true">📸</span> Capturer
                         </button>
                     </div>
-                    <small>Entrez l'URL de la page à tester. À chaque capture, l'outil compare automatiquement avec la précédente.</small>
+                    <small id="captureHint">Entrez l'URL de la page à tester. À chaque capture, l'outil compare automatiquement avec la précédente.</small>
+                    <div id="refInfo" class="ref-info-banner" aria-live="polite" hidden></div>
+                    <p class="sr-only" id="captureStatus" aria-live="polite"></p>
+                </div>
+
+                <div class="report-meta">
+                    <div class="report-label-field">
+                        <label for="reportLabel"><span aria-hidden="true">🏷️</span> Nom du rapport <span class="optional">(optionnel)</span></label>
+                        <input type="text" name="label" id="reportLabel" placeholder="Ex. Sprint 42 — Page d'accueil" autocomplete="off" maxlength="100">
+                    </div>
+                    <details class="advanced-options">
+                        <summary><span aria-hidden="true">⚙️</span> Seuils du verdict TNR</summary>
+                        <div class="advanced-options-body">
+                            <p>Définissez les seuils qui déterminent si un rapport est <strong>TNR PASSÉ</strong> ou <strong>ÉCHOUÉ</strong>.</p>
+                            <div class="verdict-threshold-fields">
+                                <div class="verdict-threshold-field">
+                                    <label for="thresholdSsim">SSIM minimum (%)</label>
+                                    <input type="number" name="threshold_ssim" id="thresholdSsim" min="50" max="100" value="95" step="1">
+                                    <span class="field-hint">95 recommandé</span>
+                                </div>
+                                <div class="verdict-threshold-field">
+                                    <label for="thresholdPixels">Pixels différents max (%)</label>
+                                    <input type="number" name="threshold_pixels" id="thresholdPixels" min="0.1" max="50" value="2" step="0.1">
+                                    <span class="field-hint">2 recommandé</span>
+                                </div>
+                            </div>
+                        </div>
+                    </details>
                 </div>
             </div>
         </form>
 
-        <div class="how-it-works">
-            <h2>🔄 Comment ça marche ?</h2>
-            <div class="steps">
-                <div class="step">
-                    <div class="step-number">1</div>
+        <section class="how-it-works" aria-labelledby="howTitle">
+            <h2 id="howTitle"><span aria-hidden="true">🔄</span> Comment ça marche ?</h2>
+            <div class="steps" role="list">
+                <div class="step" role="listitem">
+                    <div class="step-number" aria-hidden="true">1</div>
                     <h3>Première capture</h3>
                     <p>Capturez la page de référence (avant livraison). L'image est stockée localement.</p>
                 </div>
-                <div class="step">
-                    <div class="step-number">2</div>
+                <div class="step" role="listitem">
+                    <div class="step-number" aria-hidden="true">2</div>
                     <h3>Nouvelle livraison</h3>
                     <p>Après déploiement, capturez à nouveau la même URL.</p>
                 </div>
-                <div class="step">
-                    <div class="step-number">3</div>
+                <div class="step" role="listitem">
+                    <div class="step-number" aria-hidden="true">3</div>
                     <h3>Comparaison auto</h3>
                     <p>L'outil compare automatiquement les deux versions et génère un rapport avec heatmap, score SSIM et analyse IA.</p>
                 </div>
             </div>
-        </div>
+        </section>
     </main>
 
     <footer>
@@ -83,9 +115,82 @@
     <script>
         document.getElementById('captureForm').addEventListener('submit', function() {
             const btn = document.getElementById('captureBtn');
-            btn.textContent = '⏳ Capture en cours...';
+            btn.innerHTML = '<span aria-hidden="true">⏳</span> Capture en cours...';
             btn.disabled = true;
+            btn.setAttribute('aria-busy', 'true');
+            document.getElementById('captureStatus').textContent = 'Capture en cours, veuillez patienter.';
         });
+
+        // Vérification de la référence existante pour l'URL saisie
+        const urlInput = document.getElementById('url');
+        const refInfoDiv = document.getElementById('refInfo');
+        let refCheckTimeout = null;
+
+        function checkReference(url) {
+            if (!url || !url.startsWith('http')) { refInfoDiv.hidden = true; return; }
+            clearTimeout(refCheckTimeout);
+            refCheckTimeout = setTimeout(function() {
+                fetch('/capture/reference?url=' + encodeURIComponent(url))
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.has_reference) {
+                            refInfoDiv.innerHTML =
+                                '<span aria-hidden="true">📅</span> <strong>Référence disponible</strong> — ' +
+                                'dernière capture du ' + data.date + ' (' + data.count + ' capture(s) pour cette URL). ' +
+                                'La comparaison sera effectuée automatiquement.';
+                            refInfoDiv.className = 'ref-info-banner ref-info-has-ref';
+                        } else {
+                            refInfoDiv.innerHTML =
+                                '<span aria-hidden="true">ℹ️</span> <strong>Aucune référence</strong> — ' +
+                                'cette capture sera enregistrée comme référence. Revenez après la prochaine livraison pour comparer.';
+                            refInfoDiv.className = 'ref-info-banner ref-info-no-ref';
+                        }
+                        refInfoDiv.hidden = false;
+                    })
+                    .catch(() => { refInfoDiv.hidden = true; });
+            }, 400);
+        }
+
+        urlInput.addEventListener('blur', () => checkReference(urlInput.value));
+        urlInput.addEventListener('input', () => checkReference(urlInput.value));
+        // Vérification immédiate si URL pré-remplie
+        if (urlInput.value) checkReference(urlInput.value);
+    </script>
+    <script>
+        /* Indicateur statut IA -- polling toutes les 15s */
+        (function () {
+            const badge = document.getElementById('aiStatus');
+            const label = document.getElementById('aiLabel');
+            function check() {
+                fetch('/ai/status')
+                    .then(function (r) { return r.json(); })
+                    .then(function (d) {
+                        badge.classList.remove('ai-ok', 'ai-warn', 'ai-ko');
+                        if (d.connected && d.model_available) {
+                            badge.classList.add('ai-ok');
+                            label.textContent = 'IA connectée';
+                            badge.setAttribute('aria-label', 'Analyse IA disponible (' + d.model + ')');
+                        } else if (d.connected && !d.model_available) {
+                            badge.classList.add('ai-warn');
+                            label.textContent = 'Modèle absent';
+                            badge.setAttribute('aria-label', 'Ollama actif mais modèle ' + d.model + ' non téléchargé. Lancez : ollama pull ' + d.model);
+                        } else if (!d.connected && d.installed) {
+                            badge.classList.add('ai-ko');
+                            label.textContent = 'Ollama inactif';
+                            badge.setAttribute('aria-label', 'Ollama installé mais inactif — redémarrage en cours...');
+                        } else {
+                            label.textContent = 'IA non installée';
+                            badge.setAttribute('aria-label', 'Ollama non installé — lan\u00e7ez start.bat pour une installation automatique');
+                        }
+                    })
+                    .catch(function () {
+                        badge.classList.remove('ai-ok', 'ai-warn', 'ai-ko');
+                        label.textContent = 'IA…';
+                    });
+            }
+            check();
+            setInterval(check, 15000);
+        })();
     </script>
 </body>
 </html>

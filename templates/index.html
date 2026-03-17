@@ -8,45 +8,101 @@
 </head>
 <body>
     <header>
-        <h1>🔍 DataViz — Comparateur Visuel TNR</h1>
+        <h1><span aria-hidden="true">🔍</span> DataViz — Comparateur Visuel TNR</h1>
         <p class="subtitle">Comparez visuellement deux versions d'une application entre livraisons</p>
-        <nav class="nav-links">
-            <a href="/" class="nav-link active">📁 Comparer des fichiers</a>
-            <a href="/capture" class="nav-link">📸 Capturer une URL</a>
+        <nav class="nav-links" aria-label="Navigation principale">
+            <a href="/" class="nav-link" aria-current="page"><span aria-hidden="true">📁</span> Comparer des fichiers</a>
+            <a href="/capture" class="nav-link"><span aria-hidden="true">📸</span> Capturer une URL</a>
+            <a href="/history" class="nav-link"><span aria-hidden="true">📂</span> Historique</a>
+            <span class="ai-status" id="aiStatus" role="status" aria-live="polite" aria-label="Statut de l'analyse IA">
+                <span class="ai-dot" aria-hidden="true"></span>
+                <span class="ai-label" id="aiLabel">IA…</span>
+            </span>
         </nav>
     </header>
 
     <main>
         <form action="/compare" method="post" enctype="multipart/form-data" id="compareForm">
             <div class="upload-zone">
-                <div class="upload-card" id="refCard">
-                    <div class="upload-icon">📸</div>
-                    <h3>Image de référence</h3>
+                <div class="upload-card" id="refCard" role="group" aria-labelledby="refTitle" ondragover="handleDragOver(event, this)" ondragleave="handleDragLeave(event, this)" ondrop="handleDrop(event, 'imageRef', 'refPreview', this)">
+                    <div class="upload-icon" aria-hidden="true">📸</div>
+                    <h3 id="refTitle">Image de référence</h3>
                     <p>Version précédente (attendue)</p>
-                    <input type="file" name="image_ref" id="imageRef" accept="image/*" required>
+                    <input type="file" name="image_ref" id="imageRef" accept="image/*" required aria-describedby="refHint">
                     <label for="imageRef" class="upload-btn">Choisir un fichier</label>
-                    <div class="preview-container" id="refPreview"></div>
+                    <p class="drop-hint" id="refHint">ou glissez-déposez une image ici</p>
+                    <div class="preview-container" id="refPreview" aria-live="polite" aria-label="Aperçu de l'image de référence"></div>
                 </div>
 
-                <div class="upload-card" id="newCard">
-                    <div class="upload-icon">📷</div>
-                    <h3>Nouvelle image</h3>
+                <div class="upload-card" id="newCard" role="group" aria-labelledby="newTitle" ondragover="handleDragOver(event, this)" ondragleave="handleDragLeave(event, this)" ondrop="handleDrop(event, 'imageNew', 'newPreview', this)">
+                    <div class="upload-icon" aria-hidden="true">📷</div>
+                    <h3 id="newTitle">Nouvelle image</h3>
                     <p>Version livrée (à tester)</p>
-                    <input type="file" name="image_new" id="imageNew" accept="image/*" required>
+                    <input type="file" name="image_new" id="imageNew" accept="image/*" required aria-describedby="newHint">
                     <label for="imageNew" class="upload-btn">Choisir un fichier</label>
-                    <div class="preview-container" id="newPreview"></div>
+                    <p class="drop-hint" id="newHint">ou glissez-déposez une image ici</p>
+                    <div class="preview-container" id="newPreview" aria-live="polite" aria-label="Aperçu de la nouvelle image"></div>
                 </div>
             </div>
 
             <div class="options">
-                <label for="threshold">Seuil de sensibilité : <span id="thresholdValue">30</span></label>
-                <input type="range" name="threshold" id="threshold" min="5" max="100" value="30">
-                <small>Plus bas = plus sensible aux petites différences</small>
+                <fieldset class="threshold-fieldset">
+                    <legend><span aria-hidden="true">🎯</span> Seuil de détection des différences</legend>
+                    <input type="hidden" name="threshold" id="thresholdValue" value="30">
+                    <div class="threshold-segment" role="radiogroup" aria-label="Niveau de sensibilité">
+                        <label class="seg-option" data-value="10">
+                            <input type="radio" name="_threshold_ui" value="10" class="sr-only">
+                            <span class="seg-label">Très précis</span>
+                            <span class="seg-desc">Anti-aliasing, ombres légères. Très bruyant.</span>
+                        </label>
+                        <label class="seg-option" data-value="20">
+                            <input type="radio" name="_threshold_ui" value="20" class="sr-only">
+                            <span class="seg-label">Sensible</span>
+                            <span class="seg-desc">Pages statiques, peu de bruit de fond.</span>
+                        </label>
+                        <label class="seg-option seg-default" data-value="30">
+                            <input type="radio" name="_threshold_ui" value="30" class="sr-only" checked>
+                            <span class="seg-label">Équilibré <span class="seg-recommended">recommandé</span></span>
+                            <span class="seg-desc">Bon compromis pour la plupart des TNR.</span>
+                        </label>
+                        <label class="seg-option" data-value="60">
+                            <input type="radio" name="_threshold_ui" value="60" class="sr-only">
+                            <span class="seg-label">Tolérant</span>
+                            <span class="seg-desc">Ignore décalages mineurs. Signale uniquement les changements nets.</span>
+                        </label>
+                    </div>
+                </fieldset>
             </div>
 
-            <button type="submit" class="compare-btn" id="submitBtn">
-                🚀 Lancer la comparaison
+            <button type="submit" class="compare-btn" id="submitBtn" aria-describedby="formStatus">
+                <span aria-hidden="true">🚀</span> Lancer la comparaison
             </button>
+            <p class="sr-only" id="formStatus" aria-live="polite"></p>
+
+            <div class="report-meta">
+                <div class="report-label-field">
+                    <label for="reportLabel"><span aria-hidden="true">🏷️</span> Nom du rapport <span class="optional">(optionnel)</span></label>
+                    <input type="text" name="label" id="reportLabel" placeholder="Ex. Sprint 42 — Page d'accueil" autocomplete="off" maxlength="100">
+                </div>
+                <details class="advanced-options">
+                    <summary><span aria-hidden="true">⚙️</span> Seuils du verdict TNR</summary>
+                    <div class="advanced-options-body">
+                        <p>Définissez les seuils qui déterminent si un rapport est <strong>TNR PASSÉ</strong> ou <strong>ÉCHOUÉ</strong>.</p>
+                        <div class="verdict-threshold-fields">
+                            <div class="verdict-threshold-field">
+                                <label for="thresholdSsim">SSIM minimum (%)</label>
+                                <input type="number" name="threshold_ssim" id="thresholdSsim" min="50" max="100" value="95" step="1">
+                                <span class="field-hint">95 recommandé</span>
+                            </div>
+                            <div class="verdict-threshold-field">
+                                <label for="thresholdPixels">Pixels différents max (%)</label>
+                                <input type="number" name="threshold_pixels" id="thresholdPixels" min="0.1" max="50" value="2" step="0.1">
+                                <span class="field-hint">2 recommandé</span>
+                            </div>
+                        </div>
+                    </div>
+                </details>
+            </div>
         </form>
     </main>
 
@@ -55,41 +111,116 @@
     </footer>
 
     <script>
-        // Prévisualisation des images
+        // Prévisualisation d'un fichier image
+        function showPreview(file, previewId) {
+            const preview = document.getElementById(previewId);
+            preview.innerHTML = '';
+            if (!file || !file.type.startsWith('image/')) return;
+            const img = document.createElement('img');
+            img.src = URL.createObjectURL(file);
+            img.onload = () => URL.revokeObjectURL(img.src);
+            preview.appendChild(img);
+            const name = document.createElement('span');
+            name.className = 'file-name';
+            name.textContent = file.name;
+            preview.appendChild(name);
+        }
+
+        // Prévisualisation via input file
         function setupPreview(inputId, previewId) {
             const input = document.getElementById(inputId);
-            const preview = document.getElementById(previewId);
             input.addEventListener('change', function() {
-                preview.innerHTML = '';
-                if (this.files && this.files[0]) {
-                    const img = document.createElement('img');
-                    img.src = URL.createObjectURL(this.files[0]);
-                    img.onload = () => URL.revokeObjectURL(img.src);
-                    preview.appendChild(img);
-                    // Afficher le nom du fichier
-                    const name = document.createElement('span');
-                    name.className = 'file-name';
-                    name.textContent = this.files[0].name;
-                    preview.appendChild(name);
-                }
+                if (this.files && this.files[0]) showPreview(this.files[0], previewId);
             });
         }
         setupPreview('imageRef', 'refPreview');
         setupPreview('imageNew', 'newPreview');
 
-        // Slider seuil
-        const threshold = document.getElementById('threshold');
-        const thresholdValue = document.getElementById('thresholdValue');
-        threshold.addEventListener('input', () => {
-            thresholdValue.textContent = threshold.value;
-        });
+        // Drag & Drop
+        function handleDragOver(e, card) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'copy';
+            card.classList.add('drag-over');
+        }
+        function handleDragLeave(e, card) {
+            if (!card.contains(e.relatedTarget)) card.classList.remove('drag-over');
+        }
+        function handleDrop(e, inputId, previewId, card) {
+            e.preventDefault();
+            card.classList.remove('drag-over');
+            const file = e.dataTransfer.files[0];
+            if (!file || !file.type.startsWith('image/')) {
+                card.classList.add('drag-error');
+                setTimeout(() => card.classList.remove('drag-error'), 1200);
+                return;
+            }
+            // Injecter le fichier dans l'input
+            const input = document.getElementById(inputId);
+            const dt = new DataTransfer();
+            dt.items.add(file);
+            input.files = dt.files;
+            showPreview(file, previewId);
+        }
+
+        // Sélecteur segmenté — synchronise l'input hidden avec le choix de l'utilisateur
+        (function () {
+            const hidden = document.getElementById('thresholdValue');
+            document.querySelectorAll('.seg-option').forEach(function (label) {
+                label.addEventListener('click', function () {
+                    document.querySelectorAll('.seg-option').forEach(l => l.classList.remove('selected'));
+                    this.classList.add('selected');
+                    hidden.value = this.dataset.value;
+                });
+            });
+            // Marquer l'option par défaut
+            const defaultOption = document.querySelector('.seg-option.seg-default');
+            if (defaultOption) defaultOption.classList.add('selected');
+        })();
 
         // Loading state
         document.getElementById('compareForm').addEventListener('submit', function() {
             const btn = document.getElementById('submitBtn');
-            btn.textContent = '⏳ Analyse en cours...';
+            btn.innerHTML = '<span aria-hidden="true">⏳</span> Analyse en cours...';
             btn.disabled = true;
+            btn.setAttribute('aria-busy', 'true');
+            document.getElementById('formStatus').textContent = 'Analyse en cours, veuillez patienter.';
         });
+    </script>
+    <script>
+        /* Indicateur statut IA -- polling toutes les 15s */
+        (function () {
+            const badge = document.getElementById('aiStatus');
+            const label = document.getElementById('aiLabel');
+            function check() {
+                fetch('/ai/status')
+                    .then(function (r) { return r.json(); })
+                    .then(function (d) {
+                        badge.classList.remove('ai-ok', 'ai-warn', 'ai-ko');
+                        if (d.connected && d.model_available) {
+                            badge.classList.add('ai-ok');
+                            label.textContent = 'IA connectée';
+                            badge.setAttribute('aria-label', 'Analyse IA disponible (' + d.model + ')');
+                        } else if (d.connected && !d.model_available) {
+                            badge.classList.add('ai-warn');
+                            label.textContent = 'Modèle absent';
+                            badge.setAttribute('aria-label', 'Ollama actif mais modèle ' + d.model + ' non téléchargé. Lancez : ollama pull ' + d.model);
+                        } else if (!d.connected && d.installed) {
+                            badge.classList.add('ai-ko');
+                            label.textContent = 'Ollama inactif';
+                            badge.setAttribute('aria-label', 'Ollama installé mais inactif — redémarrage en cours...');
+                        } else {
+                            label.textContent = 'IA non installée';
+                            badge.setAttribute('aria-label', 'Ollama non installé — lan\u00e7ez start.bat pour une installation automatique');
+                        }
+                    })
+                    .catch(function () {
+                        badge.classList.remove('ai-ok', 'ai-warn', 'ai-ko');
+                        label.textContent = 'IA…';
+                    });
+            }
+            check();
+            setInterval(check, 15000);
+        })();
     </script>
 </body>
 </html>

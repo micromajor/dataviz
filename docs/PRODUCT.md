@@ -35,27 +35,51 @@ L'utilisateur saisit une URL dans l'interface :
 | Métrique | Description |
 |---|---|
 | **SSIM** (Structural Similarity Index) | Score de 0 à 100% mesurant la similarité structurelle perçue par l'œil humain |
-| **Diff pixel-à-pixel** | Pourcentage de pixels ayant changé au-delà du seuil |
-| **Zones modifiées** | Nombre de régions distinctes où des changements sont détectés |
-| **Heatmap** | Carte thermique colorée montrant l'intensité des différences |
-| **Contours** | Rectangles rouges encadrant chaque zone modifiée |
+| **Diff pixel-à-pixel** | Pourcentage de pixels ayant changé au-delà du seuil configurable |
+| **Zones modifiées** | Régions continues isolées après dilatation morphologique, triées par sévérité |
+| **Heatmap** | Carte thermique colorée (JET) masquée sous le seuil — zones inchangées en noir |
+| **Overlay SVG interactif** | Hit areas transparentes sur chaque zone + badges numérotés colorés par sévérité |
 
-### 2.4 Slider interactif
-Un curseur glissant permet de superposer les deux versions et de faire apparaître progressivement l'une ou l'autre, pour une comparaison visuelle intuitive.
+#### Détection robuste bas contraste
+Le diff est calculé sur `max(canal_R, canal_G, canal_B)` au lieu de la luminance pondérée, ce qui capte les changements de couleur nets même à faible contraste global. Une fusion `threshold + Canny` attrape les contours fins (ex. rectangle blanc sur fond pâle) qui passeraient sous le seuil simple.
 
-### 2.5 Analyse IA en langage naturel
+#### Classification de sévérité
+Chaque zone est classée selon 3 critères indépendants calibrés pour la visibilité humaine :
+
+| Sévérité | Intensité moyenne | Intensité maximale | Surface |
+|---|---|---|---|
+| 🔴 **Critique** | > 100 / 255 | > 230 / 255 | > 8% de l'image |
+| 🟠 **Majeur** | > 40 / 255 | > 150 / 255 | > 3% |
+| 🟡 **Mineur** | > 10 / 255 | > 50 / 255 | > 0,3% |
+| 🔵 **Cosmétique** | ≤ 10 / 255 | ≤ 50 / 255 | ≤ 0,3% |
+
+L'intensité maximale (`max_intensity`) permet de détecter un élément fin mais très contrasté même si sa valeur moyenne est diluée par le fond inchangé autour de lui.
+
+### 2.4 Slider interactif avant/après
+Un curseur glissant permet de superposer les deux versions et de faire apparaître progressivement l'une ou l'autre, pour une comparaison visuelle intuitive. Accessible au clavier (`aria-valuetext`) et touch.
+
+### 2.5 Zones modifiées interactives
+Chaque zone détectée dispose d'une hit area SVG transparente sur l'image. Au survol :
+- Un **tooltip flottant** affiche : numéro de zone, sévérité, position, dimensions, intensité moyenne et critère de classification
+- La zone correspondante dans la **liste textuelle** est mise en surbrillance (cross-highlight bidirectionnel)
+
+Les zones sont **numérotées et triées** par ordre de sévérité décroissante (critiques en premier).
+
+### 2.6 Analyse IA en langage naturel
 Si un modèle IA est disponible via Ollama, l'outil envoie les deux images au modèle qui produit une analyse détaillée en français :
 - Description de chaque changement détecté
 - Localisation spatiale (haut, bas, centre…)
 - Classification de sévérité : 🔴 Critique / 🟠 Majeur / 🟡 Mineur / 🔵 Cosmétique
 - Hypothèse régression vs changement intentionnel
 
-**Dégradation gracieuse** : si Ollama n'est pas lancé, l'outil fonctionne normalement sans l'analyse IA.
+**Dégradation gracieuse** : si Ollama n'est pas lancé, l'outil fonctionne normalement sans l'analyse IA. Un résumé textuel automatique (généré par le moteur Python) est toujours affiché.
 
-### 2.6 Verdict automatique
+### 2.7 Verdict automatique
 Basé sur les métriques SSIM et pourcentage de pixels différents :
 - ✅ **TNR PASSÉ** : SSIM ≥ 95% et pixels différents ≤ 2%
 - ⚠️ **TNR ÉCHOUÉ** : en dessous de ces seuils
+
+> **Note** : ces seuils seront configurables dans une prochaine version (MVP-3).
 
 ---
 
@@ -170,22 +194,28 @@ Pour changer de modèle, modifier `OLLAMA_MODEL` dans `app.py`.
 
 ## 6. Roadmap
 
+Voir [ROADMAP.md](ROADMAP.md) pour le détail complet et les statuts.
+
+### MVP en cours
+- [ ] Historique local des comparaisons (JSON + page liste navigable)
+- [ ] Nommage libre des rapports
+- [ ] Seuils verdict configurables (SSIM, % pixels)
+- [ ] Affichage de la référence avant capture URL
+
 ### Court terme
+- [ ] Export PDF / HTML standalone
 - [ ] Comparaison par lots (dossier d'images ou liste d'URLs)
-- [ ] Historique navigable des comparaisons
-- [ ] Configuration des seuils TNR par projet
+- [ ] Zones d'exclusion configurables (masquer dates, compteurs dynamiques)
+- [ ] API REST pour intégration CI/CD
 
 ### Moyen terme
-- [ ] Export PDF des rapports de TNR
-- [ ] API REST pour intégration CI/CD
-- [ ] Zones d'exclusion (masquer dates, compteurs, données dynamiques)
+- [ ] Dashboard de suivi des régressions dans le temps
 - [ ] Multi-résolutions et multi-navigateurs
+- [ ] Apprentissage des faux positifs
 
 ### Long terme
-- [ ] Dashboard de suivi des régressions dans le temps
-- [ ] Apprentissage des faux positifs (l'IA apprend à ignorer les variations acceptées)
-- [ ] Mode comparaison de composants UI individuels (via segmentation SAM)
-- [ ] Plugin navigateur pour capturer directement depuis Chrome/Firefox
+- [ ] Segmentation composants UI individuels (SAM)
+- [ ] Plugin navigateur
 
 ---
 

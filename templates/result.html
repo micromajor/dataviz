@@ -8,53 +8,109 @@
 </head>
 <body>
     <header>
-        <h1>🔍 DataViz — Résultats de comparaison</h1>
-        <nav class="nav-links">
-            <a href="/" class="nav-link">📁 Comparer des fichiers</a>
-            <a href="/capture" class="nav-link">📸 Capturer une URL</a>
+        <h1><span aria-hidden="true">🔍</span> DataViz — Résultats de comparaison</h1>
+        <nav class="nav-links" aria-label="Navigation principale">
+            <a href="/" class="nav-link"><span aria-hidden="true">📁</span> Comparer des fichiers</a>
+            <a href="/capture" class="nav-link"><span aria-hidden="true">📸</span> Capturer une URL</a>
+            <a href="/history" class="nav-link"><span aria-hidden="true">📂</span> Historique</a>
         </nav>
     </header>
 
     <main>
+        {% if from_history is defined and from_history %}
+        <div class="history-banner" role="status">
+            <span aria-hidden="true">🗃️</span> Rapport archivé
+            {% if created_at is defined %}— effectué le {{ created_at[:10].split('-') | reverse | join('/') }}{% if created_at | length > 10 %} à {{ created_at[11:16] }}{% endif %}{% endif %}
+            &nbsp;•&nbsp; <a href="/history">← Retour à l'historique</a>
+        </div>
+        {% endif %}
+        {% if label is defined and label %}
+        <div class="report-label-display">
+            <span aria-hidden="true">🏷️</span> <strong>{{ label }}</strong>
+        </div>
+        {% endif %}
         <!-- Indicateurs -->
-        <div class="metrics">
-            <div class="metric-card {{ 'good' if score_ssim >= 0.95 else ('warning' if score_ssim >= 0.85 else 'bad') }}">
+        <div class="metrics" role="list" aria-label="Indicateurs de comparaison">
+            <div class="metric-card {{ 'good' if score_ssim >= 0.95 else ('warning' if score_ssim >= 0.85 else 'bad') }} has-tooltip" role="listitem" tabindex="0">
                 <div class="metric-value">{{ (score_ssim * 100) | round(1) }}%</div>
-                <div class="metric-label">Similarité (SSIM)</div>
+                <div class="metric-label">Similarité (SSIM) <span class="tooltip-trigger" aria-hidden="true">ⓘ</span></div>
+                <div class="metric-status sr-only">{% if score_ssim >= 0.95 %}Bon{% elif score_ssim >= 0.85 %}Attention{% else %}Problème{% endif %}</div>
+                <div role="tooltip" class="metric-tooltip">Score SSIM (Structural Similarity Index) : mesure perceptuelle de la ressemblance (luminance, contraste, structure). 100&nbsp;% = identique. Indépendant du % de pixels différents.</div>
             </div>
-            <div class="metric-card {{ 'good' if diff_percent <= 1 else ('warning' if diff_percent <= 5 else 'bad') }}">
+            <div class="metric-card {{ 'good' if diff_percent <= 1 else ('warning' if diff_percent <= 5 else 'bad') }} has-tooltip" role="listitem" tabindex="0">
                 <div class="metric-value">{{ diff_percent }}%</div>
-                <div class="metric-label">Pixels différents</div>
+                <div class="metric-label">Pixels différents <span class="tooltip-trigger" aria-hidden="true">ⓘ</span></div>
+                <div class="metric-status sr-only">{% if diff_percent <= 1 %}Bon{% elif diff_percent <= 5 %}Attention{% else %}Problème{% endif %}</div>
+                <div role="tooltip" class="metric-tooltip">Pourcentage brut de pixels dont l'écart dépasse le seuil. Un décalage de 1&nbsp;px peut faire monter ce chiffre sans que les images soient visuellement très différentes.</div>
             </div>
-            <div class="metric-card {{ 'good' if num_regions == 0 else ('warning' if num_regions <= 5 else 'bad') }}">
+            <div class="metric-card {{ 'good' if num_regions == 0 else ('warning' if num_regions <= 5 else 'bad') }} has-tooltip" role="listitem" tabindex="0">
                 <div class="metric-value">{{ num_regions }}</div>
-                <div class="metric-label">Zones modifiées</div>
+                <div class="metric-label">Zones modifiées <span class="tooltip-trigger" aria-hidden="true">ⓘ</span></div>
+                <div class="metric-status sr-only">{% if num_regions == 0 %}Bon{% elif num_regions <= 5 %}Attention{% else %}Problème{% endif %}</div>
+                <div role="tooltip" class="metric-tooltip">Nombre de zones continues de pixels différents, regroupées après dilatation morphologique. Chaque zone est classée par sévérité.</div>
             </div>
-            <div class="metric-card neutral">
+            <div class="metric-card neutral has-tooltip" role="listitem" tabindex="0">
                 <div class="metric-value">{{ threshold }}</div>
-                <div class="metric-label">Seuil utilisé</div>
+                <div class="metric-label">Seuil utilisé <span class="tooltip-trigger" aria-hidden="true">ⓘ</span></div>
+                <div role="tooltip" class="metric-tooltip">Valeur du seuil de sensibilité appliquée lors de cette comparaison (5&nbsp;= très sensible, 100&nbsp;= très tolérant).</div>
             </div>
         </div>
 
         <!-- Verdict -->
-        <div class="verdict {{ 'verdict-pass' if score_ssim >= 0.95 and diff_percent <= 2 else 'verdict-fail' }}">
-            {% if score_ssim >= 0.95 and diff_percent <= 2 %}
-                ✅ TNR PASSÉ — Les deux versions sont visuellement conformes
+        {% set ssim_thr = (threshold_ssim | default(95)) / 100 %}
+        {% set pix_thr = threshold_pixels | default(2) %}
+        <div class="verdict {{ 'verdict-pass' if verdict == 'pass' else ('verdict-pass' if (score_ssim >= ssim_thr and diff_percent <= pix_thr) else 'verdict-fail') }}" role="status" aria-live="polite">
+            {% if verdict is defined %}
+                {% if verdict == 'pass' %}
+                    <span aria-hidden="true">✅</span> TNR PASSÉ — Les deux versions sont visuellement conformes
+                {% else %}
+                    <span aria-hidden="true">⚠️</span> TNR ÉCHOUÉ — Des différences visuelles ont été détectées
+                {% endif %}
             {% else %}
-                ⚠️ TNR ÉCHOUÉ — Des différences visuelles ont été détectées
+                {% if score_ssim >= 0.95 and diff_percent <= 2 %}
+                    <span aria-hidden="true">✅</span> TNR PASSÉ — Les deux versions sont visuellement conformes
+                {% else %}
+                    <span aria-hidden="true">⚠️</span> TNR ÉCHOUÉ — Des différences visuelles ont été détectées
+                {% endif %}
+            {% endif %}
+            {% if threshold_ssim is defined %}
+            <span class="verdict-thresholds">— seuils : SSIM ≥ {{ threshold_ssim }}%, pixels ≤ {{ threshold_pixels }}%</span>
             {% endif %}
         </div>
 
-        <!-- Résumé textuel automatique -->
+        <!-- Résumé textuel + Image annotée (split view) -->
         {% if text_summary %}
+        <div class="diff-split-view{% if not (regions is defined and regions) %} diff-no-split{% endif %}"><!-- split -->
+        <div class="diff-split-list"><!-- list -->
         <section class="result-section summary-section">
             <h2>📋 Résumé des différences</h2>
             <p class="section-desc">Analyse automatique basée sur le moteur de comparaison OpenCV</p>
+            <details class="severity-legend">
+                <summary><span aria-hidden="true">ℹ️</span> Comment les niveaux de sévérité sont-ils calculés ?</summary>
+                <div class="severity-legend-body">
+                    <p>Chaque zone est classée selon <strong>deux critères indépendants</strong> (le plus élevé l'emporte) :</p>
+                    <table class="severity-table">
+                        <caption>Grille de classification de la sévérité des zones de changement</caption>
+                        <thead><tr><th scope="col">Niveau</th><th scope="col">Intensité moyenne du changement</th><th scope="col">Surface couverte</th><th scope="col">Signification</th></tr></thead>
+                        <tbody>
+                            <tr class="row-critique"><td><span aria-hidden="true">🔴</span> Critique</td><td>moy. &gt; 100 / 255 ou max. &gt; 230 / 255</td><td>&gt; 8 % de l'image</td><td>Changement visuel fort ou très étendu (ex. mise en page cassée)</td></tr>
+                            <tr class="row-majeur"><td><span aria-hidden="true">🟠</span> Majeur</td><td>moy. &gt; 40 / 255 ou max. &gt; 150 / 255</td><td>&gt; 3 %</td><td>Changement net et perceptible (ex. couleur, texte, élément ajouté)</td></tr>
+                            <tr class="row-mineur"><td><span aria-hidden="true">🟡</span> Mineur</td><td>moy. &gt; 10 / 255 ou max. &gt; 50 / 255</td><td>&gt; 0,3 %</td><td>Écart visible à l'œil nu (ex. décalage, contour, ombre)</td></tr>
+                            <tr class="row-cosmetique"><td><span aria-hidden="true">🔵</span> Cosmétique</td><td>moy. ≤ 10 / 255 et max. ≤ 50 / 255</td><td>≤ 0,3 %</td><td>Micro-différence quasi imperceptible (ex. anti-aliasing, compression JPEG)</td></tr>
+                        </tbody>
+                    </table>
+                    <p class="legend-note">L'<strong>intensité</strong> est l'écart moyen des pixels de la zone sur l'échelle 0–255. La <strong>surface</strong> est le pourcentage de l'image couverte par le bounding-box de la zone détectée.</p>
+                </div>
+            </details>
             <div class="text-summary">
+                {% set ns = namespace(zone_num=0) %}
                 {% for line in text_summary.split('\n') %}
                     {% if line.startswith('🔴') or line.startswith('🟠') or line.startswith('🟡') or line.startswith('🔵') %}
-                        <div class="summary-zone {{ 'zone-critique' if '🔴' in line else ('zone-majeur' if '🟠' in line else ('zone-mineur' if '🟡' in line else 'zone-cosmetique')) }}">
-                            {{ line }}
+                        {% set ns.zone_num = ns.zone_num + 1 %}
+                        <div class="summary-zone {{ 'zone-critique' if '🔴' in line else ('zone-majeur' if '🟠' in line else ('zone-mineur' if '🟡' in line else 'zone-cosmetique')) }}"
+                             data-zone="{{ ns.zone_num }}" tabindex="0">
+                            <span class="zone-num-badge" aria-hidden="true">{{ ns.zone_num }}</span>
+                            <span>{{ line }}</span>
                         </div>
                     {% elif line.startswith('Synthèse') %}
                         <div class="summary-synthesis">{{ line }}</div>
@@ -64,80 +120,178 @@
                 {% endfor %}
             </div>
         </section>
+        </div><!-- /diff-split-list -->
+        {% if regions is defined and regions %}
+        <div class="diff-split-image"><!-- image -->
+        <section class="result-section" aria-labelledby="contoursTitle">
+            <h2 id="contoursTitle"><span aria-hidden="true">🔲</span> Zones modifiées détectées</h2>
+            <p class="section-desc">
+                {{ num_regions }} zone(s) numérotée(s) par sévérité :
+                <span class="badge-sev sev-critique">critique</span>
+                <span class="badge-sev sev-majeur">majeur</span>
+                <span class="badge-sev sev-mineur">mineur</span>
+                <span class="badge-sev sev-cosmetique">cosmétique</span>.
+                Survolez une zone pour voir le détail, cliquez pour retrouver dans le résumé.
+            </p>
+            <div class="result-image">
+                <figure class="contour-figure">
+                    <img src="{{ new_url }}"
+                         alt="Nouvelle image avec {{ num_regions }} zone(s) de changement annotées."
+                         id="contourBaseImg">
+                    <svg class="contour-overlay"
+                         viewBox="0 0 {{ img_width }} {{ img_height }}"
+                         preserveAspectRatio="xMidYMid meet"
+                         aria-hidden="true"
+                         focusable="false">
+                        {% for region in regions %}
+                        {% set sev_css = region.severity | replace('é', 'e') %}
+                        {% set bx = region.x if (region.x + 24) <= img_width else (img_width - 24) %}
+                        {% set by = (region.y - 24) if region.y >= 26 else (region.y + region.h + 4) %}
+                        <rect class="zone-hit zone-hit-{{ sev_css }}"
+                              data-zone="{{ region.zone_index }}"
+                              data-severity="{{ region.severity }}"
+                              data-position="{{ region.position }}"
+                              data-size="{{ region.w }}×{{ region.h }} px ({{ region.area_percent }}% de l'image)"
+                              data-intensity="Intensité moy. {{ region.avg_intensity }}/255"
+                              data-criteria="{{ region.criteria | e }}"
+                              x="{{ region.x }}" y="{{ region.y }}"
+                              width="{{ region.w }}" height="{{ region.h }}"
+                              rx="2" />
+                        <g class="zone-badge-svg zone-badge-{{ sev_css }}"
+                           data-zone="{{ region.zone_index }}">
+                            <rect x="{{ bx }}" y="{{ by }}" width="22" height="20" rx="3" />
+                            <text x="{{ bx + 11 }}" y="{{ by + 14 }}"
+                                  text-anchor="middle"
+                                  font-family="Helvetica Neue, Helvetica, Arial, sans-serif"
+                                  font-size="12" font-weight="700">{{ region.zone_index }}</text>
+                        </g>
+                        {% endfor %}
+                    </svg>
+                </figure>
+                <p class="contour-download">
+                    <a href="{{ contour_url }}" download aria-label="Télécharger l'image annotée avec les zones numérotées">
+                        <span aria-hidden="true">⬇️</span> Télécharger l'image annotée (PNG)
+                    </a>
+                </p>
+            </div>
+        </section>
+        </div><!-- /diff-split-image -->
+        {% endif %}
+        </div><!-- /diff-split-view -->
         {% endif %}
 
         <!-- Analyse IA -->
         {% if ai_analysis %}
         <section class="result-section ai-section">
-            <h2>🤖 Analyse IA approfondie (modèle local)</h2>
+            <h2><span aria-hidden="true">🤖</span> Analyse IA approfondie (modèle local)</h2>
             <p class="section-desc">Interprétation par intelligence artificielle embarquée — modèle vision multimodal</p>
             <div class="ai-analysis">
                 {{ ai_analysis | replace('\n', '<br>') | safe }}
             </div>
         </section>
+        {% elif not from_history %}
+        <section class="result-section ai-section" id="aiSection">
+            <h2><span aria-hidden="true">🤖</span> Analyse IA approfondie (modèle local)</h2>
+            <p class="section-desc">Interprétation par intelligence artificielle embarquée — modèle vision multimodal</p>
+            <div id="aiPending" style="display:flex;align-items:center;gap:12px;padding:16px 0;">
+                <span class="ai-spinner" aria-hidden="true"></span>
+                <span>Analyse IA en cours… cela peut prendre quelques minutes selon le modèle.</span>
+            </div>
+            <div id="aiResult" class="ai-analysis" style="display:none;" role="status" aria-live="polite"></div>
+            <div id="aiError" style="display:none;color:var(--text-muted);font-size:.9rem;">
+                L'analyse IA n'est pas disponible pour cette comparaison.
+            </div>
+        </section>
+        <script>
+        (function() {
+            var uid = "{{ uid }}";
+            var maxAttempts = 40; // 40 x 8s = ~5 min max
+            var attempts = 0;
+            function poll() {
+                if (attempts >= maxAttempts) {
+                    document.getElementById('aiPending').style.display = 'none';
+                    document.getElementById('aiError').style.display = 'block';
+                    return;
+                }
+                attempts++;
+                fetch('/ai/result/' + uid)
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        if (data.status === 'done' && data.analysis) {
+                            document.getElementById('aiPending').style.display = 'none';
+                            var el = document.getElementById('aiResult');
+                            el.innerHTML = data.analysis.replace(/\n/g, '<br>');
+                            el.style.display = 'block';
+                        } else {
+                            setTimeout(poll, 8000);
+                        }
+                    })
+                    .catch(function() { setTimeout(poll, 8000); });
+            }
+            setTimeout(poll, 5000);
+        })();
+        </script>
         {% endif %}
 
         {% if source_url %}
         <div class="source-info">
-            <span>🌐 URL testée : <code>{{ source_url }}</code></span>
+            <span><span aria-hidden="true">🌐</span> URL testée : <code>{{ source_url }}</code></span>
             {% if capture_count %}<span> • Capture n°{{ capture_count }}</span>{% endif %}
+            {% if ref_date is defined and ref_date %}
+            <span class="ref-date-info"> • <span aria-hidden="true">📅</span> Référence utilisée : capture du {{ ref_date }}</span>
+            {% endif %}
         </div>
         {% endif %}
 
         <!-- Comparaison par slider -->
-        <section class="result-section">
-            <h2>📊 Comparaison interactive</h2>
+        <section class="result-section" aria-labelledby="sliderTitle">
+            <h2 id="sliderTitle"><span aria-hidden="true">📊</span> Comparaison interactive</h2>
+            <p class="section-desc">Faites glisser le curseur pour comparer les deux versions. Utilisable au clavier (touches fléchées) et à la souris.</p>
             <div class="slider-compare" id="sliderCompare">
-                <div class="slider-img-container">
-                    <img src="{{ ref_url }}" alt="Image référence" class="slider-img" id="imgRef">
+                <div class="slider-img-container" role="img" aria-label="Comparaison interactive : image de référence à gauche, nouvelle version à droite. Faites glisser pour révéler.">
+                    <img src="{{ ref_url }}" alt="Image de référence (version précédente)" class="slider-img" id="imgRef">
                     <div class="slider-overlay" id="sliderOverlay">
-                        <img src="{{ new_url }}" alt="Nouvelle image" class="slider-img" id="imgNew">
+                        <img src="{{ new_url }}" alt="Nouvelle image (version livrée à tester)" class="slider-img" id="imgNew">
                     </div>
-                    <div class="slider-handle" id="sliderHandle">
+                    <div class="slider-handle" id="sliderHandle" aria-hidden="true">
                         <div class="slider-line"></div>
                         <div class="slider-grip">⟷</div>
                     </div>
                 </div>
-                <div class="slider-labels">
-                    <span>📸 Référence</span>
-                    <span>📷 Nouvelle version</span>
+                <div class="slider-labels" aria-hidden="true">
+                    <span><span aria-hidden="true">📸</span> Référence</span>
+                    <span><span aria-hidden="true">📷</span> Nouvelle version</span>
                 </div>
             </div>
         </section>
 
         <!-- Heatmap des différences -->
-        <section class="result-section">
-            <h2>🌡️ Heatmap des différences</h2>
-            <p class="section-desc">Les zones colorées indiquent les pixels modifiés. Rouge = forte différence.</p>
+        <section class="result-section" aria-labelledby="heatmapTitle">
+            <h2 id="heatmapTitle"><span aria-hidden="true">🌡️</span> Heatmap des différences</h2>
+            <p class="section-desc">Les zones colorées indiquent les pixels modifiés. Rouge&nbsp;= forte différence, bleu&nbsp;= différence faible.</p>
             <div class="result-image">
-                <img src="{{ heatmap_url }}" alt="Heatmap des différences">
-            </div>
-        </section>
-
-        <!-- Zones détectées -->
-        <section class="result-section">
-            <h2>🔲 Zones modifiées détectées</h2>
-            <p class="section-desc">Les rectangles rouges encadrent les zones où des changements ont été identifiés.</p>
-            <div class="result-image">
-                <img src="{{ contour_url }}" alt="Zones modifiées">
+                <img src="{{ heatmap_url }}" alt="Heatmap des différences : {{ diff_percent }}% de pixels modifiés. Les zones rouges indiquent les changements les plus forts.">
             </div>
         </section>
 
         <!-- Images originales côte à côte -->
-        <section class="result-section">
-            <h2>🖼️ Images originales</h2>
+        <section class="result-section" aria-labelledby="originalsTitle">
+            <h2 id="originalsTitle"><span aria-hidden="true">🖼️</span> Images originales</h2>
             <div class="side-by-side">
                 <div>
                     <h3>Référence</h3>
-                    <img src="{{ ref_url }}" alt="Image référence">
+                    <img src="{{ ref_url }}" alt="Image de référence (version précédente)">
                 </div>
                 <div>
                     <h3>Nouvelle version</h3>
-                    <img src="{{ new_url }}" alt="Nouvelle image">
+                    <img src="{{ new_url }}" alt="Nouvelle image (version livrée à tester)">
                 </div>
             </div>
         </section>
     </main>
+
+    <!-- Tooltip flottant pour les zones SVG -->
+    <div id="zone-tooltip" class="zone-tooltip" role="tooltip" aria-hidden="true"></div>
 
     <footer>
         <p>DataViz TNR — 100% Offline • Aucune donnée envoyée sur internet</p>
@@ -181,6 +335,64 @@
                 if (isDragging) updateSlider(e.touches[0].clientX);
             });
             document.addEventListener('touchend', () => isDragging = false);
+        })();
+
+        // Correspondance visuelle zones image <-> items résumé
+        (function () {
+            function setHighlight(zoneIdx, active) {
+                document.querySelectorAll('[data-zone="' + zoneIdx + '"]').forEach(function (el) {
+                    el.classList.toggle('zone-highlighted', active);
+                });
+            }
+            // Survol des zones dans l'image (hit areas SVG)
+            document.querySelectorAll('.zone-hit').forEach(function (rect) {
+                var z = rect.dataset.zone;
+                rect.addEventListener('mouseenter', function () { setHighlight(z, true); });
+                rect.addEventListener('mouseleave', function () { setHighlight(z, false); });
+                rect.addEventListener('click', function () {
+                    var item = document.querySelector('.summary-zone[data-zone="' + z + '"]');
+                    if (item) item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                });
+            });
+            // Survol des items dans le résumé textuel
+            document.querySelectorAll('.summary-zone[data-zone]').forEach(function (div) {
+                var z = div.dataset.zone;
+                div.addEventListener('mouseenter', function () { setHighlight(z, true); });
+                div.addEventListener('mouseleave', function () { setHighlight(z, false); });
+            });
+        })();
+
+        // Tooltip flottant sur les zones SVG
+        (function () {
+            var tooltip = document.getElementById('zone-tooltip');
+            var sevIcons = { 'critique': '🔴', 'majeur': '🟠', 'mineur': '🟡', 'cosmétique': '🔵' };
+            document.querySelectorAll('.zone-hit[data-severity]').forEach(function (rect) {
+                rect.addEventListener('mouseenter', function () {
+                    var d = this.dataset;
+                    var icon = sevIcons[d.severity] || '⚪';
+                    tooltip.innerHTML =
+                        '<div class="zt-title">' + icon + ' Zone ' + d.zone + ' — ' + d.severity.toUpperCase() + '</div>' +
+                        '<div class="zt-row"><span class="zt-ico" aria-hidden="true">📍</span>' + d.position + '</div>' +
+                        '<div class="zt-row"><span class="zt-ico" aria-hidden="true">📐</span>' + d.size + '</div>' +
+                        '<div class="zt-row"><span class="zt-ico" aria-hidden="true">📊</span>' + d.intensity + '</div>' +
+                        '<div class="zt-row zt-criteria"><span class="zt-ico" aria-hidden="true">🔬</span>' + d.criteria + '</div>';
+                    tooltip.removeAttribute('aria-hidden');
+                    tooltip.classList.add('visible');
+                });
+                rect.addEventListener('mousemove', function (e) {
+                    var offset = 16;
+                    var left = e.clientX + offset;
+                    var top  = e.clientY + offset;
+                    if (left + 280 > window.innerWidth)  { left = e.clientX - 280 - offset; }
+                    if (top  + 140 > window.innerHeight) { top  = e.clientY - 140 - offset; }
+                    tooltip.style.left = left + 'px';
+                    tooltip.style.top  = top  + 'px';
+                });
+                rect.addEventListener('mouseleave', function () {
+                    tooltip.classList.remove('visible');
+                    tooltip.setAttribute('aria-hidden', 'true');
+                });
+            });
         })();
     </script>
 </body>
