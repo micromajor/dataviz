@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -92,16 +92,7 @@
                             <span><span aria-hidden="true">🤖</span> Analyse IA (Ollama local)</span>
                             <span class="badge-experimental">expérimental</span>
                         </label>
-                        <div class="ai-model-row" id="aiModelRow" hidden>
-                            <label for="aiModelSelect">Modèle&nbsp;:</label>
-                            <select name="ai_model" id="aiModelSelect" aria-describedby="aiModelHint">
-                                <option value="minicpm-v" selected>minicpm-v &mdash; recommandé (5.5 Go)</option>
-                                <option value="qwen2.5vl:7b">qwen2.5vl:7b &mdash; très bon (6 Go)</option>
-                                <option value="llava:13b">llava:13b &mdash; robuste (8 Go)</option>
-                                <option value="llava">llava:7b &mdash; léger (4 Go)</option>
-                            </select>
-                            <small id="aiModelHint">Ollama doit être lancé avec le modèle pullé au préalable.</small>
-                        </div>
+                        <small id="aiUnavailableHint" hidden style="color:var(--text-muted);font-size:.85rem;">Modèle IA non disponible &mdash; lancez <code>start.bat</code> pour le télécharger.</small>
                     </div>
                 </div>
             </div>
