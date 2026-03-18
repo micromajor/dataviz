@@ -229,7 +229,7 @@ if (-not $ollamaExe) {
         Write-Host ("`r    Telechargement termine : " + [math]::Round($downloaded / 1MB, 1) + " Mo                              ") -ForegroundColor Green
 
         Info "Lancement de l'installateur Ollama..."
-        Info "  L'installateur s'ouvre - aucun clic requis, patientez jusqu'a sa fermeture."
+        Info "  L'installateur s'ouvre - cliquez sur 'Install' puis patientez jusqu'a sa fermeture."
         # Ne pas utiliser -Wait : l'installateur Ollama ne se ferme pas proprement.
         # On surveille plutot l'apparition de ollama.exe sur le disque (90s max).
         Start-Process $installer -ArgumentList "/S"
