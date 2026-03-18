@@ -542,7 +542,6 @@ async def take_screenshot(
     threshold_ssim: int = Form(default=95),
     threshold_pixels: float = Form(default=2.0),
     use_ai: str = Form(default=""),
-    ai_model: str = Form(default=""),
 ):
     """Capture une URL et compare avec la capture précédente si elle existe."""
     import hashlib
@@ -594,13 +593,12 @@ async def take_screenshot(
     # Analyse IA (optionnelle — lancée en arrière-plan uniquement si activée)
     ai_analysis = None
     ai_enabled = use_ai == "true"
-    safe_model = ai_model if ai_model in ALLOWED_MODELS else OLLAMA_MODEL
     if ai_enabled:
         background_tasks.add_task(
             _ai_background_task, uid,
             ref_bytes, screenshot_bytes,
             result["score_ssim"], result["diff_percent"], result["num_regions"],
-            model=safe_model,
+            model=OLLAMA_MODEL,
         )
 
     verdict = "pass" if result["score_ssim"] >= threshold_ssim / 100 and result["diff_percent"] <= threshold_pixels else "fail"
@@ -684,7 +682,6 @@ async def compare(
     threshold_ssim: int = Form(default=95),
     threshold_pixels: float = Form(default=2.0),
     use_ai: str = Form(default=""),
-    ai_model: str = Form(default=""),
 ):
     # Lecture des images
     ref_bytes = await image_ref.read()
@@ -722,13 +719,12 @@ async def compare(
     # Analyse IA (optionnelle — lancée en arrière-plan uniquement si activée par l'utilisateur)
     ai_analysis = None
     ai_enabled = use_ai == "true"
-    safe_model = ai_model if ai_model in ALLOWED_MODELS else OLLAMA_MODEL
     if ai_enabled:
         background_tasks.add_task(
             _ai_background_task, uid,
             ref_bytes, new_bytes,
             result["score_ssim"], result["diff_percent"], result["num_regions"],
-            model=safe_model,
+            model=OLLAMA_MODEL,
         )
 
     verdict = "pass" if result["score_ssim"] >= threshold_ssim / 100 and result["diff_percent"] <= threshold_pixels else "fail"

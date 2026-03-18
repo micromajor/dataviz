@@ -749,6 +749,8 @@ footer {
 }
 .ai-toggle-switch input:checked ~ .ai-toggle-track { background: var(--primary); }
 .ai-toggle-switch input:checked ~ .ai-toggle-track::after { transform: translateX(18px); }
+.ai-toggle-switch input:disabled ~ .ai-toggle-track { opacity: 0.35; cursor: not-allowed; }
+.ai-toggle-label:has(input:disabled) { opacity: 0.5; cursor: not-allowed; }
 .ai-toggle-switch input:focus-visible ~ .ai-toggle-track {
     outline: 2px solid var(--primary);
     outline-offset: 2px;

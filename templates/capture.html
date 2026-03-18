@@ -134,12 +134,10 @@
     </footer>
 
     <script>
-        // Toggle IA — affiche/masque le sélecteur de modèle
+        // Toggle IA
         (function () {
             var cb = document.getElementById('useAi');
-            var row = document.getElementById('aiModelRow');
             function syncToggle() {
-                row.hidden = !cb.checked;
                 cb.setAttribute('aria-checked', cb.checked ? 'true' : 'false');
             }
             cb.addEventListener('change', syncToggle);
@@ -199,6 +197,12 @@
                     .then(function (r) { return r.json(); })
                     .then(function (d) {
                         badge.classList.remove('ai-ok', 'ai-warn', 'ai-ko');
+                        var aiAvailable = d.connected && d.model_available;
+                        var cb = document.getElementById('useAi');
+                        var hint = document.getElementById('aiUnavailableHint');
+                        cb.disabled = !aiAvailable;
+                        if (!aiAvailable && cb.checked) { cb.checked = false; cb.setAttribute('aria-checked', 'false'); }
+                        hint.hidden = aiAvailable;
                         if (d.connected && d.model_available) {
                             badge.classList.add('ai-ok');
                             label.textContent = 'IA connectée';
@@ -206,14 +210,14 @@
                         } else if (d.connected && !d.model_available) {
                             badge.classList.add('ai-warn');
                             label.textContent = 'Modèle absent';
-                            badge.setAttribute('aria-label', 'Ollama actif mais modèle ' + d.model + ' non téléchargé. Lancez : ollama pull ' + d.model);
+                            badge.setAttribute('aria-label', 'Ollama actif mais modèle ' + d.model + ' non téléchargé. Lancez start.bat pour le télécharger.');
                         } else if (!d.connected && d.installed) {
                             badge.classList.add('ai-ko');
                             label.textContent = 'Ollama inactif';
                             badge.setAttribute('aria-label', 'Ollama installé mais inactif — redémarrage en cours...');
                         } else {
                             label.textContent = 'IA non installée';
-                            badge.setAttribute('aria-label', 'Ollama non installé — lan\u00e7ez start.bat pour une installation automatique');
+                            badge.setAttribute('aria-label', 'Ollama non installé — lancez start.bat pour une installation automatique');
                         }
                     })
                     .catch(function () {
