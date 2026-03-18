@@ -676,6 +676,108 @@ footer {
     white-space: pre-wrap;
 }
 
+/* Badge "expérimental" */
+.badge-experimental {
+    display: inline-block;
+    font-size: 0.68rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    background: rgba(255, 121, 0, 0.12);
+    color: var(--primary);
+    border: 1px solid rgba(255, 121, 0, 0.35);
+    border-radius: 3px;
+    padding: 1px 6px;
+    vertical-align: middle;
+    margin-left: 6px;
+}
+
+/* IA désactivée */
+.ai-disabled { opacity: 0.6; border-left-color: var(--border); }
+.ai-disabled-msg { color: var(--text-muted); font-size: 0.9rem; padding: 0.5rem 0; }
+.ai-error-msg { color: var(--danger); font-size: 0.9rem; padding: 0.75rem; background: rgba(219,0,2,0.06); border: 1px solid rgba(219,0,2,0.25); border-radius: var(--radius); }
+
+/* Bloc options IA dans le formulaire */
+.ai-options-row {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+.ai-toggle-label {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    cursor: pointer;
+    font-size: 0.95rem;
+    user-select: none;
+}
+/* Toggle switch visuel */
+.ai-toggle-switch { position: relative; display: inline-flex; align-items: center; }
+.ai-toggle-switch input[type="checkbox"] {
+    /* accessible mais invisible (géré par le track visuel) */
+    position: absolute;
+    opacity: 0;
+    width: 40px;
+    height: 22px;
+    margin: 0;
+    cursor: pointer;
+    z-index: 1;
+}
+.ai-toggle-track {
+    display: inline-block;
+    width: 40px;
+    height: 22px;
+    background: var(--border);
+    border-radius: 11px;
+    position: relative;
+    transition: background .2s;
+}
+.ai-toggle-track::after {
+    content: '';
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 16px;
+    height: 16px;
+    background: #fff;
+    border-radius: 50%;
+    transition: transform .2s;
+    box-shadow: 0 1px 3px rgba(0,0,0,.2);
+}
+.ai-toggle-switch input:checked ~ .ai-toggle-track { background: var(--primary); }
+.ai-toggle-switch input:checked ~ .ai-toggle-track::after { transform: translateX(18px); }
+.ai-toggle-switch input:focus-visible ~ .ai-toggle-track {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+/* Sélecteur de modèle */
+.ai-model-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+    padding-left: 0.4rem;
+    font-size: 0.9rem;
+}
+.ai-model-row label { font-weight: 600; white-space: nowrap; }
+.ai-model-row select {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0.3rem 0.5rem;
+    font-size: 0.9rem;
+    background: var(--bg);
+    color: var(--text);
+}
+.ai-model-row select:focus {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+    border-color: var(--primary);
+}
+.ai-model-row small { color: var(--text-muted); font-size: 0.78rem; }
+
 /* Text Summary */
 .summary-section { border-left: 4px solid var(--warning); }
 .text-summary {

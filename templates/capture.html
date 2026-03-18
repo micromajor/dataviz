@@ -82,6 +82,27 @@
                             </div>
                         </div>
                     </details>
+
+                    <div class="ai-options-row">
+                        <label class="ai-toggle-label" for="useAi">
+                            <span class="ai-toggle-switch">
+                                <input type="checkbox" name="use_ai" id="useAi" value="true" role="switch" aria-checked="false">
+                                <span class="ai-toggle-track" aria-hidden="true"></span>
+                            </span>
+                            <span><span aria-hidden="true">🤖</span> Analyse IA (Ollama local)</span>
+                            <span class="badge-experimental">expérimental</span>
+                        </label>
+                        <div class="ai-model-row" id="aiModelRow" hidden>
+                            <label for="aiModelSelect">Modèle&nbsp;:</label>
+                            <select name="ai_model" id="aiModelSelect" aria-describedby="aiModelHint">
+                                <option value="minicpm-v" selected>minicpm-v &mdash; recommandé (5.5 Go)</option>
+                                <option value="qwen2.5vl:7b">qwen2.5vl:7b &mdash; très bon (6 Go)</option>
+                                <option value="llava:13b">llava:13b &mdash; robuste (8 Go)</option>
+                                <option value="llava">llava:7b &mdash; léger (4 Go)</option>
+                            </select>
+                            <small id="aiModelHint">Ollama doit être lancé avec le modèle pullé au préalable.</small>
+                        </div>
+                    </div>
                 </div>
             </div>
         </form>
@@ -113,6 +134,18 @@
     </footer>
 
     <script>
+        // Toggle IA — affiche/masque le sélecteur de modèle
+        (function () {
+            var cb = document.getElementById('useAi');
+            var row = document.getElementById('aiModelRow');
+            function syncToggle() {
+                row.hidden = !cb.checked;
+                cb.setAttribute('aria-checked', cb.checked ? 'true' : 'false');
+            }
+            cb.addEventListener('change', syncToggle);
+            syncToggle();
+        })();
+
         document.getElementById('captureForm').addEventListener('submit', function() {
             const btn = document.getElementById('captureBtn');
             btn.innerHTML = '<span aria-hidden="true">⏳</span> Capture en cours...';

@@ -183,24 +183,22 @@
         <!-- Analyse IA -->
         {% if ai_analysis %}
         <section class="result-section ai-section">
-            <h2><span aria-hidden="true">🤖</span> Analyse IA approfondie (modèle local)</h2>
+            <h2><span aria-hidden="true">🤖</span> Analyse IA — <code>{{ ai_model if ai_model else "llava" }}</code> <span class="badge-experimental">expérimental</span></h2>
             <p class="section-desc">Interprétation par intelligence artificielle embarquée — modèle vision multimodal</p>
             <div class="ai-analysis">
                 {{ ai_analysis | replace('\n', '<br>') | safe }}
             </div>
         </section>
-        {% elif not from_history %}
+        {% elif use_ai_enabled is defined and use_ai_enabled and not from_history %}
         <section class="result-section ai-section" id="aiSection">
-            <h2><span aria-hidden="true">🤖</span> Analyse IA approfondie (modèle local)</h2>
+            <h2><span aria-hidden="true">🤖</span> Analyse IA <span class="badge-experimental">expérimental</span></h2>
             <p class="section-desc">Interprétation par intelligence artificielle embarquée — modèle vision multimodal</p>
-            <div id="aiPending" style="display:flex;align-items:center;gap:12px;padding:16px 0;">
+            <div id="aiPending" style="display:flex;align-items:center;gap:12px;padding:16px 0;" aria-live="polite">
                 <span class="ai-spinner" aria-hidden="true"></span>
-                <span>Analyse IA en cours… cela peut prendre quelques minutes selon le modèle.</span>
+                <span>Analyse IA en cours avec <strong>{{ ai_model if ai_model else "llava" }}</strong>… cela peut prendre quelques minutes.</span>
             </div>
             <div id="aiResult" class="ai-analysis" style="display:none;" role="status" aria-live="polite"></div>
-            <div id="aiError" style="display:none;color:var(--text-muted);font-size:.9rem;">
-                L'analyse IA n'est pas disponible pour cette comparaison.
-            </div>
+            <div id="aiError" style="display:none;" class="ai-error-msg" role="alert" aria-live="assertive"></div>
         </section>
         <script>
         (function() {
@@ -210,7 +208,9 @@
             function poll() {
                 if (attempts >= maxAttempts) {
                     document.getElementById('aiPending').style.display = 'none';
-                    document.getElementById('aiError').style.display = 'block';
+                    var err = document.getElementById('aiError');
+                    err.textContent = 'L\'analyse IA a dépassé le délai d\'attente. Vérifiez qu\'Ollama est actif et que le modèle est téléchargé.';
+                    err.style.display = 'block';
                     return;
                 }
                 attempts++;
@@ -222,6 +222,11 @@
                             var el = document.getElementById('aiResult');
                             el.innerHTML = data.analysis.replace(/\n/g, '<br>');
                             el.style.display = 'block';
+                        } else if (data.status === 'error') {
+                            document.getElementById('aiPending').style.display = 'none';
+                            var err = document.getElementById('aiError');
+                            err.textContent = data.error || 'L\'analyse IA n\'est pas disponible pour cette comparaison.';
+                            err.style.display = 'block';
                         } else {
                             setTimeout(poll, 8000);
                         }
@@ -231,6 +236,11 @@
             setTimeout(poll, 5000);
         })();
         </script>
+        {% elif use_ai_enabled is defined and not use_ai_enabled and not from_history %}
+        <section class="result-section ai-section ai-disabled">
+            <h2><span aria-hidden="true">🤖</span> Analyse IA <span class="badge-experimental">expérimental</span></h2>
+            <p class="ai-disabled-msg"><span aria-hidden="true">💤</span> Analyse IA désactivée pour cette comparaison.</p>
+        </section>
         {% endif %}
 
         {% if source_url %}

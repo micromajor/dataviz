@@ -5,7 +5,7 @@ $ZIP_NAME   = "DataViz-TNR_v" + $VERSION + "_" + $DATE + ".zip"
 $ZIP_PATH   = Join-Path $SCRIPT_DIR $ZIP_NAME
 $TEMP_DIR   = Join-Path $env:TEMP ("dataviz_dist_" + $DATE)
 
-$INCLUDE = @("app.py","requirements.txt","README.md","start.bat","start.ps1","static","templates","docs")
+$INCLUDE = @("app.py","requirements.txt","README.md","start.bat","start.ps1","uninstall.bat","uninstall.ps1","static","templates","docs")
 
 Write-Host ""
 Write-Host "DataViz TNR - Creation du ZIP de distribution" -ForegroundColor Cyan
@@ -25,6 +25,15 @@ foreach ($item in $INCLUDE) {
 }
 
 if (Test-Path $ZIP_PATH) { Remove-Item $ZIP_PATH -Force }
+
+# Re-encoder les .ps1 en UTF-8 BOM pour compatibilite PowerShell 5.1
+# (PS 5.1 lit les fichiers en Windows-1252 par defaut ; le BOM force l'UTF-8)
+Get-ChildItem $TEMP_DIR -Filter "*.ps1" -Recurse | ForEach-Object {
+    $content = [System.IO.File]::ReadAllText($_.FullName, [System.Text.Encoding]::UTF8)
+    [System.IO.File]::WriteAllText($_.FullName, $content, [System.Text.UTF8Encoding]::new($true))
+}
+Write-Host "  (Re-encodage UTF-8 BOM des scripts .ps1)" -ForegroundColor DarkGray
+
 Compress-Archive -Path ("$TEMP_DIR\*") -DestinationPath $ZIP_PATH -CompressionLevel Optimal
 Remove-Item $TEMP_DIR -Recurse -Force
 
@@ -33,6 +42,6 @@ Write-Host ""
 Write-Host ("  ZIP cree : " + $ZIP_NAME + " (" + $size + " Ko)") -ForegroundColor Green
 Write-Host ("  Emplacement : " + $ZIP_PATH) -ForegroundColor White
 Write-Host ""
-Write-Host "  Contenu : app.py, requirements.txt, README.md, start.bat, start.ps1, static/, templates/, docs/" -ForegroundColor DarkGray
+  Write-Host "  Contenu : app.py, requirements.txt, README.md, start.bat, start.ps1, uninstall.bat, uninstall.ps1, static/, templates/, docs/" -ForegroundColor DarkGray
 Write-Host "  Exclus  : .venv/, uploads/, results/, captures/, history/, __pycache__/" -ForegroundColor DarkGray
 Write-Host ""

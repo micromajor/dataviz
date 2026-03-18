@@ -18,15 +18,22 @@ L'outil fonctionne **100% offline** — aucune donnée ne transite sur internet.
 dataviz/
 ├── app.py                  # Serveur FastAPI — point d'entrée principal
 ├── requirements.txt        # Dépendances Python
+├── start.bat               # Lanceur Windows (enveloppe start.ps1)
+├── start.ps1               # Script d'installation + démarrage tout-en-un
+├── uninstall.bat           # Désinstallateur (enveloppe uninstall.ps1)
+├── uninstall.ps1           # Script de désinstallation propre (sync avec start.ps1)
+├── build_zip.bat / .ps1    # Génération du ZIP de distribution
 ├── templates/
 │   ├── index.html          # Page d'accueil — upload de 2 images
 │   ├── capture.html        # Page de capture d'écran par URL
-│   └── result.html         # Page de résultats de comparaison
+│   ├── result.html         # Page de résultats de comparaison
+│   └── history.html        # Page historique des comparaisons
 ├── static/
 │   └── style.css           # Styles CSS (thème light OUDS v1.1)
 ├── uploads/                # Images uploadées (généré)
 ├── results/                # Images de résultats : heatmap, contours (généré)
 ├── captures/               # Screenshots capturés par Playwright (généré)
+├── history/                # Rapports JSON des comparaisons (généré)
 ├── docs/
 │   └── PRODUCT.md          # Documentation produit
 └── .github/
@@ -143,3 +150,11 @@ Ce projet applique les **recommandations d'accessibilité Orange** (WCAG 2.2 niv
 - Les templates HTML doivent utiliser le même système de design (CSS variables)
 - Toute nouvelle fonctionnalité doit fonctionner offline
 - **Tout nouveau composant HTML doit respecter les guidelines Orange ci-dessus**
+- **Règle de synchronisation start/uninstall** : toute modification de `start.ps1` ou `start.bat` qui
+  ajoute/supprime/déplace un composant installé (package pip, navigateur, répertoire généré, service…)
+  **doit immédiatement être répercutée dans `uninstall.ps1`** pour que la désinstallation reste complète
+  et cohérente. Les deux scripts forment une paire indissociable.
+- **Règle de synchronisation build_zip** : toute modification du code source qui ajoute, supprime ou
+  renomme un fichier ou répertoire à distribuer (nouveau template, script, asset statique…)
+  **doit immédiatement être répercutée dans la liste `$INCLUDE` de `build_zip.ps1`** pour que le ZIP
+  de distribution reste complet et fidèle au projet.

@@ -8,7 +8,7 @@ $PYTHON_VENV = Join-Path $VENV_DIR "Scripts\python.exe"
 $APP_PORT    = 8000
 
 $m = Select-String -Path (Join-Path $SCRIPT_DIR "app.py") -Pattern 'OLLAMA_MODEL\s*=\s*"([^"]+)"' | Select-Object -First 1
-$OLLAMA_MODEL = if ($m) { $m.Matches.Groups[1].Value } else { "pixtral" }
+$OLLAMA_MODEL = if ($m) { $m.Matches.Groups[1].Value } else { "minicpm-v" }
 
 # Etapes totales
 $TOTAL_STEPS = if ($SkipDeps) { 6 } else { 8 }
@@ -254,6 +254,8 @@ if (-not $ollamaExe) {
         }
     } catch {
         Warn "Impossible de telecharger Ollama : installez-le manuellement sur https://ollama.com"
+        # Nettoyage de l'installateur en cas d'erreur
+        if (Test-Path $installer) { Remove-Item $installer -Force -ErrorAction SilentlyContinue }
     }
 } else {
     OK ("Ollama detecte : " + $ollamaExe)
@@ -340,25 +342,15 @@ if ($ollamaExe) {
                 Write-Host ""
                 Start-Sleep 5
             } else {
-                Warn ("Modele " + $OLLAMA_MODEL + " absent - telechargement necessaire")
+                Warn ("Modele " + $OLLAMA_MODEL + " absent - lancement du telechargement en arriere-plan")
                 Write-Host ""
-                Write-Host "    L'application est deja accessible et utilisable." -ForegroundColor Green
-                Write-Host "    L'analyse IA sera disponible des la fin du telechargement." -ForegroundColor Green
-                Write-Host "    L'indicateur IA dans l'interface se mettra a jour automatiquement." -ForegroundColor Green
+                # Lancement non bloquant : une fenetre separee s'ouvre et telecharge le modele
+                # L'application est deja utilisable pendant ce temps
+                Start-Process $ollamaExe -ArgumentList ("pull " + $OLLAMA_MODEL) -WindowStyle Normal
                 Write-Host ""
-                Info ("  Modele a telecharger : " + $OLLAMA_MODEL)
-                Info "  Taille approximative : llava ~4 Go, moondream ~1.5 Go"
-                Info "  Duree estimee : 5 a 30 minutes selon votre connexion."
-                Info "  NE FERMEZ PAS CETTE FENETRE pendant le telechargement."
-                Write-Host ""
-                & $ollamaExe pull $OLLAMA_MODEL
-                Write-Host ""
-                if ($LASTEXITCODE -eq 0) {
-                    OK ("Modele " + $OLLAMA_MODEL + " telecharge avec succes !")
-                    OK "L'indicateur IA dans DataViz vient de passer au vert automatiquement."
-                } else {
-                    Warn "Echec du telechargement - relancez start.bat pour reessayer"
-                }
+                Write-Host "    Une fenetre de telechargement vient de s'ouvrir." -ForegroundColor Cyan
+                Write-Host ("    Modele : " + $OLLAMA_MODEL + "  (~5.5 Go pour minicpm-v, 5 a 30 min selon votre connexion)") -ForegroundColor Cyan
+                Write-Host "    L'analyse IA sera disponible automatiquement une fois termine." -ForegroundColor Cyan
                 Write-Host ""
                 Write-Host "    Cette fenetre peut etre fermee." -ForegroundColor DarkGray
                 Write-Host "    Pour arreter DataViz, fermez sa fenetre de terminal." -ForegroundColor DarkGray

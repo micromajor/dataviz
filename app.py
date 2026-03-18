@@ -44,7 +44,19 @@ CAPTURE_DIR.mkdir(exist_ok=True)
 HISTORY_DIR.mkdir(exist_ok=True)
 
 OLLAMA_BASE_URL = "http://localhost:11434"
-OLLAMA_MODEL = "llava"  # llava:7b ~4 Go — bon compromis qualite/taille pour l'analyse de screenshots
+OLLAMA_MODEL = "minicpm-v"  # minicpm-v ~5.5 Go — spécialisé UI/OCR, bien meilleur que llava pour les screenshots web
+
+# Liste blanche des modèles Ollama autorisés (sécurité : valeur soumise par formulaire)
+ALLOWED_MODELS = {
+    "minicpm-v",
+    "llava",
+    "llava:7b",
+    "llava:13b",
+    "qwen2.5vl:7b",
+    "qwen2-vl:7b",
+    "llava-llama3",
+    "moondream",
+}
 
 # ---------------------------------------------------------------------------
 # Helpers Ollama
@@ -368,13 +380,27 @@ def save_report(uid: str, label: str, mode: str, data: dict) -> None:
 
 
 def update_report_ai(uid: str, ai_analysis: str) -> None:
-    """Met à jour uniquement le champ ai_analysis d'un rapport existant."""
+    """Met à jour le champ ai_analysis d'un rapport existant (si analyse réussie)."""
     path = HISTORY_DIR / f"{uid}.json"
     if not path.exists():
         return
     with open(path, "r", encoding="utf-8") as f:
         record = json.load(f)
     record["ai_analysis"] = ai_analysis
+    record["ai_status"] = "done"
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(record, f, ensure_ascii=False, indent=2)
+
+
+def update_report_ai_error(uid: str, reason: str = "unavailable") -> None:
+    """Marque un rapport comme ayant échoué côté IA, avec un message d'erreur court."""
+    path = HISTORY_DIR / f"{uid}.json"
+    if not path.exists():
+        return
+    with open(path, "r", encoding="utf-8") as f:
+        record = json.load(f)
+    record["ai_status"] = "error"
+    record["ai_error"] = reason
     with open(path, "w", encoding="utf-8") as f:
         json.dump(record, f, ensure_ascii=False, indent=2)
 
@@ -386,11 +412,17 @@ async def _ai_background_task(
     score_ssim: float,
     diff_percent: float,
     num_regions: int,
+    model: str | None = None,
 ) -> None:
     """Tâche de fond : lance l'analyse IA et met à jour le rapport une fois terminée."""
-    result = await analyze_with_ai(ref_bytes, new_bytes, score_ssim, diff_percent, num_regions)
+    result = await analyze_with_ai(ref_bytes, new_bytes, score_ssim, diff_percent, num_regions, model=model)
     if result:
         update_report_ai(uid, result)
+    else:
+        # L'analyse a échoué (Ollama injoignable, modèle absent, timeout...)
+        # On stocke l'état d'erreur pour que le polling JS puisse s'arrêter immédiatement
+        safe_model = model or OLLAMA_MODEL
+        update_report_ai_error(uid, f"Modèle '{safe_model}' indisponible — vérifiez qu'Ollama tourne et que le modèle est téléchargé (ollama pull {safe_model}).")
 
 
 
@@ -438,12 +470,16 @@ async def analyze_with_ai(
     score_ssim: float,
     diff_percent: float,
     num_regions: int,
+    model: str | None = None,
 ) -> str | None:
     """
     Envoie les deux images à un modèle vision local (Ollama) pour obtenir
     une description en langage naturel des différences détectées.
     Retourne None si Ollama n'est pas disponible.
     """
+    # Sécurité : utiliser uniquement un modèle de la liste blanche
+    safe_model = model if model in ALLOWED_MODELS else OLLAMA_MODEL
+
     ref_b64 = base64.b64encode(ref_bytes).decode("utf-8")
     new_b64 = base64.b64encode(new_bytes).decode("utf-8")
 
@@ -464,7 +500,7 @@ async def analyze_with_ai(
     )
 
     payload = {
-        "model": OLLAMA_MODEL,
+        "model": safe_model,
         "prompt": prompt,
         "images": [ref_b64, new_b64],
         "stream": False,
@@ -505,6 +541,8 @@ async def take_screenshot(
     label: str = Form(default=""),
     threshold_ssim: int = Form(default=95),
     threshold_pixels: float = Form(default=2.0),
+    use_ai: str = Form(default=""),
+    ai_model: str = Form(default=""),
 ):
     """Capture une URL et compare avec la capture précédente si elle existe."""
     import hashlib
@@ -553,65 +591,74 @@ async def take_screenshot(
             result["score_ssim"], result["diff_percent"], result["regions"],
         )
 
-    # Analyse IA (optionnelle — lancée en arrière-plan, ne bloque pas la réponse)
+    # Analyse IA (optionnelle — lancée en arrière-plan uniquement si activée)
     ai_analysis = None
-    background_tasks.add_task(
-        _ai_background_task, uid,
-        ref_bytes, screenshot_bytes,
-        result["score_ssim"], result["diff_percent"], result["num_regions"],
-    )
+    ai_enabled = use_ai == "true"
+    safe_model = ai_model if ai_model in ALLOWED_MODELS else OLLAMA_MODEL
+    if ai_enabled:
+        background_tasks.add_task(
+            _ai_background_task, uid,
+            ref_bytes, screenshot_bytes,
+            result["score_ssim"], result["diff_percent"], result["num_regions"],
+            model=safe_model,
+        )
 
     verdict = "pass" if result["score_ssim"] >= threshold_ssim / 100 and result["diff_percent"] <= threshold_pixels else "fail"
-        save_report(uid, label, "url", {
-            "score_ssim": result["score_ssim"],
-            "diff_percent": result["diff_percent"],
-            "num_regions": result["num_regions"],
-            "threshold": 30,
+    save_report(uid, label, "url", {
+        "score_ssim": result["score_ssim"],
+        "diff_percent": result["diff_percent"],
+        "num_regions": result["num_regions"],
+        "threshold": 30,
+        "threshold_ssim": threshold_ssim,
+        "threshold_pixels": threshold_pixels,
+        "verdict": verdict,
+        "ref_url": f"/captures/{ref_path.name}",
+        "new_url": f"/captures/{filename}",
+        "heatmap_url": heatmap_url,
+        "contour_url": contour_url,
+        "text_summary": text_summary,
+        "ai_analysis": ai_analysis,
+        "ai_status": "pending" if ai_enabled else "disabled",
+        "ai_enabled": ai_enabled,
+        "ai_model": safe_model,
+        "source_url": url,
+        "ref_date": ref_date,
+        "capture_count": len(previous_captures) + 1,
+        "regions": result["regions"],
+        "img_width": result["img_width"],
+        "img_height": result["img_height"],
+    })
+
+    return templates.TemplateResponse(
+        "result.html",
+        {
+            "request": request,
+            "uid": uid,
+            "label": label.strip(),
+            "verdict": verdict,
             "threshold_ssim": threshold_ssim,
             "threshold_pixels": threshold_pixels,
-            "verdict": verdict,
+            "from_history": False,
             "ref_url": f"/captures/{ref_path.name}",
             "new_url": f"/captures/{filename}",
             "heatmap_url": heatmap_url,
             "contour_url": contour_url,
+            "score_ssim": result["score_ssim"],
+            "diff_percent": result["diff_percent"],
+            "num_regions": result["num_regions"],
+            "threshold": 30,
             "text_summary": text_summary,
             "ai_analysis": ai_analysis,
+            "use_ai_enabled": ai_enabled,
+            "ai_model": safe_model,
             "source_url": url,
             "ref_date": ref_date,
             "capture_count": len(previous_captures) + 1,
             "regions": result["regions"],
             "img_width": result["img_width"],
             "img_height": result["img_height"],
-        })
-
-        return templates.TemplateResponse(
-            "result.html",
-            {
-                "request": request,
-                "uid": uid,
-                "label": label.strip(),
-                "verdict": verdict,
-                "threshold_ssim": threshold_ssim,
-                "threshold_pixels": threshold_pixels,
-                "from_history": False,
-                "ref_url": f"/captures/{ref_path.name}",
-                "new_url": f"/captures/{filename}",
-                "heatmap_url": heatmap_url,
-                "contour_url": contour_url,
-                "score_ssim": result["score_ssim"],
-                "diff_percent": result["diff_percent"],
-                "num_regions": result["num_regions"],
-                "threshold": 30,
-                "text_summary": text_summary,
-                "ai_analysis": ai_analysis,
-                "source_url": url,
-                "ref_date": ref_date,
-                "capture_count": len(previous_captures) + 1,
-                "regions": result["regions"],
-                "img_width": result["img_width"],
-                "img_height": result["img_height"],
-            },
-        )
+        },
+    )
 
     # Première capture : pas de comparaison possible
     return templates.TemplateResponse(
@@ -636,6 +683,8 @@ async def compare(
     label: str = Form(default=""),
     threshold_ssim: int = Form(default=95),
     threshold_pixels: float = Form(default=2.0),
+    use_ai: str = Form(default=""),
+    ai_model: str = Form(default=""),
 ):
     # Lecture des images
     ref_bytes = await image_ref.read()
@@ -670,13 +719,17 @@ async def compare(
         result["score_ssim"], result["diff_percent"], result["regions"],
     )
 
-    # Analyse IA (optionnelle — lancée en arrière-plan, ne bloque pas la réponse)
+    # Analyse IA (optionnelle — lancée en arrière-plan uniquement si activée par l'utilisateur)
     ai_analysis = None
-    background_tasks.add_task(
-        _ai_background_task, uid,
-        ref_bytes, new_bytes,
-        result["score_ssim"], result["diff_percent"], result["num_regions"],
-    )
+    ai_enabled = use_ai == "true"
+    safe_model = ai_model if ai_model in ALLOWED_MODELS else OLLAMA_MODEL
+    if ai_enabled:
+        background_tasks.add_task(
+            _ai_background_task, uid,
+            ref_bytes, new_bytes,
+            result["score_ssim"], result["diff_percent"], result["num_regions"],
+            model=safe_model,
+        )
 
     verdict = "pass" if result["score_ssim"] >= threshold_ssim / 100 and result["diff_percent"] <= threshold_pixels else "fail"
     save_report(uid, label, "file", {
@@ -693,6 +746,9 @@ async def compare(
         "contour_url": contour_url,
         "text_summary": text_summary,
         "ai_analysis": ai_analysis,
+        "ai_status": "pending" if ai_enabled else "disabled",
+        "ai_enabled": ai_enabled,
+        "ai_model": safe_model,
         "source_url": None,
         "regions": result["regions"],
         "img_width": result["img_width"],
@@ -719,6 +775,8 @@ async def compare(
             "threshold": threshold,
             "text_summary": text_summary,
             "ai_analysis": ai_analysis,
+            "use_ai_enabled": ai_enabled,
+            "ai_model": safe_model,
             "regions": result["regions"],
             "img_width": result["img_width"],
             "img_height": result["img_height"],
@@ -755,8 +813,12 @@ async def ai_result(uid: str):
     with open(path, encoding="utf-8") as f:
         data = json.load(f)
     ai = data.get("ai_analysis")
+    ai_status = data.get("ai_status", "pending")
+    ai_error = data.get("ai_error")
     if ai:
         return JSONResponse({"status": "done", "analysis": ai})
+    if ai_status == "error":
+        return JSONResponse({"status": "error", "error": ai_error or "IA indisponible"})
     return JSONResponse({"status": "pending", "analysis": None})
 
 
