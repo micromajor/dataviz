@@ -336,11 +336,10 @@ if ($ollamaExe) {
             if ($modelPresent) {
                 OK ("Modele " + $OLLAMA_MODEL + " disponible - analyse IA active")
                 Write-Host ""
-                Write-Host "    Cette fenetre peut etre fermee." -ForegroundColor DarkGray
                 Write-Host "    Pour arreter DataViz, fermez sa fenetre de terminal." -ForegroundColor DarkGray
                 Write-Host "    Prochain demarrage rapide : start.bat -SkipDeps" -ForegroundColor DarkGray
                 Write-Host ""
-                Start-Sleep 5
+                Read-Host "    Appuyez sur Entree pour fermer cette fenetre"
             } else {
                 Warn ("Modele " + $OLLAMA_MODEL + " absent - lancement du telechargement en arriere-plan")
                 Write-Host ""
@@ -352,22 +351,20 @@ if ($ollamaExe) {
                 Write-Host ("    Modele : " + $OLLAMA_MODEL + "  (~5.5 Go pour minicpm-v, 5 a 30 min selon votre connexion)") -ForegroundColor Cyan
                 Write-Host "    L'analyse IA sera disponible automatiquement une fois termine." -ForegroundColor Cyan
                 Write-Host ""
-                Write-Host "    Cette fenetre peut etre fermee." -ForegroundColor DarkGray
                 Write-Host "    Pour arreter DataViz, fermez sa fenetre de terminal." -ForegroundColor DarkGray
                 Write-Host "    Prochain demarrage rapide : start.bat -SkipDeps" -ForegroundColor DarkGray
                 Write-Host ""
+                Read-Host "    Appuyez sur Entree pour fermer cette fenetre"
             }
         } catch {
             Warn ("Impossible de verifier le modele : " + $_)
             Write-Host ""
-            Write-Host "    Cette fenetre peut etre fermee." -ForegroundColor DarkGray
-            Write-Host ""
+            Read-Host "    Appuyez sur Entree pour fermer cette fenetre"
         }
     } else {
-        Write-Host "    Cette fenetre peut etre fermee." -ForegroundColor DarkGray
         Write-Host "    Pour arreter DataViz, fermez sa fenetre de terminal." -ForegroundColor DarkGray
         Write-Host "    Prochain demarrage rapide : start.bat -SkipDeps" -ForegroundColor DarkGray
         Write-Host ""
-        Start-Sleep 5
+        Read-Host "    Appuyez sur Entree pour fermer cette fenetre"
     }
 }
